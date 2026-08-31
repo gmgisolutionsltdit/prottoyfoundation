@@ -80,7 +80,6 @@ export function AppLayout({ children }: { children: ReactNode }) {
       <img src="/logo.png" alt="Prottoy Foundation" className="h-10 w-10 rounded-full" />
       <div>
         <h1 className="text-sm font-semibold leading-tight">Prottoy Foundation</h1>
-        <p className="text-xs text-muted-foreground">Account Management</p>
       </div>
     </div>
   );
