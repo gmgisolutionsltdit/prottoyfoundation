@@ -10,6 +10,9 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious,
+} from "@/components/ui/pagination";
 import { formatBDT } from "@/lib/format";
 import { toast } from "@/hooks/use-toast";
 import { safeErrorMessage } from "@/lib/errors";
@@ -55,6 +58,8 @@ export default function Dues() {
   const [memberFilter, setMemberFilter] = useState<string>(ALL);
   const [fundFilter, setFundFilter] = useState<string>(ALL);
   const [endMonth, setEndMonth] = useState<string>(defaultEnd);
+  const [page, setPage] = useState(1);
+  const MEMBERS_PER_PAGE = 10;
 
   useEffect(() => {
     document.title = "Dues | Prottoy Foundation";
@@ -122,6 +127,7 @@ export default function Dues() {
         const dueMonths = paidMonths === null ? null : Math.max(totalMonths - paidMonths, 0);
         return {
           key: s.id,
+          memberId: s.member_id,
           memberNo: member?.member_no ?? 0,
           memberName: member?.full_name ?? "—",
           fundName: fund?.name ?? "—",
@@ -143,6 +149,32 @@ export default function Dues() {
 
       .sort((a, b) => a.memberNo - b.memberNo || a.fundName.localeCompare(b.fundName));
   }, [subs, txns, memberFilter, fundFilter, endMonth, memberMap, fundMap]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [memberFilter, fundFilter, endMonth]);
+
+  const pageMemberIds = useMemo(() => {
+    const seen = new Set<string>();
+    const ids: string[] = [];
+    for (const r of rows) {
+      if (!seen.has(r.memberId)) {
+        seen.add(r.memberId);
+        ids.push(r.memberId);
+      }
+    }
+    return ids;
+  }, [rows]);
+
+  const totalPages = Math.max(1, Math.ceil(pageMemberIds.length / MEMBERS_PER_PAGE));
+  const currentPage = Math.min(page, totalPages);
+
+  const visibleMemberIds = useMemo(
+    () => new Set(pageMemberIds.slice((currentPage - 1) * MEMBERS_PER_PAGE, currentPage * MEMBERS_PER_PAGE)),
+    [pageMemberIds, currentPage]
+  );
+
+  const pageRows = useMemo(() => rows.filter((r) => visibleMemberIds.has(r.memberId)), [rows, visibleMemberIds]);
 
   const totals = useMemo(() => {
     return rows.reduce(
@@ -277,7 +309,11 @@ export default function Dues() {
           <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
             <div className="space-y-1.5">
               <CardTitle>Dues</CardTitle>
-              <CardDescription>{loading ? "Loading…" : `${rows.length} subscription rows`}</CardDescription>
+              <CardDescription>
+                {loading
+                  ? "Loading…"
+                  : `${rows.length} subscription rows · ${pageMemberIds.length} members`}
+              </CardDescription>
             </div>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" onClick={handleExportImage} disabled={exporting || rows.length === 0}>
@@ -321,7 +357,7 @@ export default function Dues() {
                       </TableCell>
                     </TableRow>
                   )}
-                  {rows.map((r) => (
+                  {pageRows.map((r) => (
                     <TableRow key={r.key}>
                       <TableCell className="font-mono">{r.memberNo}</TableCell>
                       <TableCell className="font-medium">{r.memberName}</TableCell>
@@ -362,6 +398,47 @@ export default function Dues() {
               </Table>
               </div>
             </div>
+
+            {totalPages > 1 && (
+              <Pagination className="mt-4">
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setPage((p) => Math.max(1, p - 1));
+                      }}
+                      className={currentPage === 1 ? "pointer-events-none opacity-50" : undefined}
+                    />
+                  </PaginationItem>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                    <PaginationItem key={p}>
+                      <PaginationLink
+                        href="#"
+                        isActive={p === currentPage}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setPage(p);
+                        }}
+                      >
+                        {p}
+                      </PaginationLink>
+                    </PaginationItem>
+                  ))}
+                  <PaginationItem>
+                    <PaginationNext
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setPage((p) => Math.min(totalPages, p + 1));
+                      }}
+                      className={currentPage === totalPages ? "pointer-events-none opacity-50" : undefined}
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            )}
           </CardContent>
         </Card>
       </div>
