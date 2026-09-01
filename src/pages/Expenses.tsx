@@ -25,7 +25,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Plus, Search, Pencil, Trash2, Paperclip, X } from "lucide-react";
-import { formatBDT } from "@/lib/format";
+import { formatBDT, formatDMY } from "@/lib/format";
 import { uploadAttachment, deleteAttachment } from "@/lib/uploadAttachment";
 import { AttachmentThumb, AttachmentViewLink } from "@/components/AttachmentThumb";
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
@@ -248,7 +248,7 @@ export default function Expenses() {
                   )}
                   {filtered.map((r) => (
                     <TableRow key={r.id}>
-                      <TableCell>{r.expense_date}</TableCell>
+                      <TableCell>{formatDMY(r.expense_date)}</TableCell>
                       <TableCell>{r.fund?.name ?? "—"}</TableCell>
                       <TableCell>{r.category ?? "—"}</TableCell>
                       <TableCell>{r.payee ?? "—"}</TableCell>

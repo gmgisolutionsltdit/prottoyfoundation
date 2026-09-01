@@ -27,7 +27,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Plus, Search, Receipt, Pencil, Trash2, Paperclip, X } from "lucide-react";
-import { formatBDT, PAYMENT_METHODS, PAYMENT_LABEL, type PaymentMethod } from "@/lib/format";
+import { formatBDT, formatDMY, PAYMENT_METHODS, PAYMENT_LABEL, type PaymentMethod } from "@/lib/format";
 import { uploadAttachment, deleteAttachment } from "@/lib/uploadAttachment";
 import { AttachmentThumb, AttachmentViewLink } from "@/components/AttachmentThumb";
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
@@ -408,7 +408,7 @@ export default function Income() {
                   )}
                   {filtered.map((r) => (
                     <TableRow key={r.id}>
-                      <TableCell>{r.txn_date}</TableCell>
+                      <TableCell>{formatDMY(r.txn_date)}</TableCell>
                       <TableCell className="font-mono text-xs">
                         {r.receipt ? (
                           <Badge variant="secondary" className="gap-1">
