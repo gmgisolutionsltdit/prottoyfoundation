@@ -5,7 +5,13 @@ on:
     branches: [main]
     paths:
       - "supabase/migrations/**"
+      - ".github/workflows/deploy-migrations.yml"
   workflow_dispatch: {}
+
+# Never let two migration runs overlap.
+concurrency:
+  group: supabase-migrations
+  cancel-in-progress: false
 
 jobs:
   migrate:
@@ -17,7 +23,26 @@ jobs:
         with:
           version: latest
 
-      - name: Push pending migrations to Supabase
+      - name: Sanity-check the secret is set
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          if [ -z "$SUPABASE_DB_URL" ]; then
+            echo "::error::Repository secret SUPABASE_DB_URL is not set."
+            exit 1
+          fi
+          case "$SUPABASE_DB_URL" in
+            *pooler.supabase.com:5432*) : ;;
+            *) echo "::warning::Expected the Session pooler URL (…pooler.supabase.com:5432). Direct db.<ref>.supabase.co is IPv6-only and GitHub runners cannot reach it." ;;
+          esac
+
+      - name: Push pending migrations
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
         run: supabase db push --db-url "$SUPABASE_DB_URL"
+
+      - name: Show applied migration history
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          supabase migration list --db-url "$SUPABASE_DB_URL" || true
