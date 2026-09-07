@@ -96,7 +96,7 @@ export default function Income() {
   const [search, setSearch] = useState("");
   const [fundFilter, setFundFilter] = useState<string>("all");
   const [monthFilter, setMonthFilter] = useState<string>("");
-  const [sortBy, setSortBy] = useState<"date" | "amount" | "member">("date");
+  const [sortBy, setSortBy] = useState<"date" | "amount" | "member" | "for_month">("date");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
 
@@ -161,6 +161,14 @@ export default function Income() {
       if (sortBy === "amount") return (Number(a.amount) - Number(b.amount)) * dir;
       if (sortBy === "member") {
         return (a.member?.full_name ?? a.donor_name ?? "").localeCompare(b.member?.full_name ?? b.donor_name ?? "") * dir;
+      }
+      if (sortBy === "for_month") {
+        const am = a.for_month ?? "";
+        const bm = b.for_month ?? "";
+        if (!am && !bm) return 0;
+        if (!am) return 1; // rows with no For Month always sort last
+        if (!bm) return -1;
+        return String(am).localeCompare(String(bm)) * dir;
       }
       return String(a.txn_date).localeCompare(String(b.txn_date)) * dir;
     });
@@ -367,13 +375,15 @@ export default function Income() {
               />
               <Select value={`${sortBy}:${sortDir}`} onValueChange={(v) => {
                 const [by, dir] = v.split(":");
-                setSortBy(by as "date" | "amount" | "member");
+                setSortBy(by as "date" | "amount" | "member" | "for_month");
                 setSortDir(dir as "asc" | "desc");
               }}>
                 <SelectTrigger className="w-full sm:w-48"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="date:desc">Date — newest first</SelectItem>
                   <SelectItem value="date:asc">Date — oldest first</SelectItem>
+                  <SelectItem value="for_month:desc">For Month — newest first</SelectItem>
+                  <SelectItem value="for_month:asc">For Month — oldest first</SelectItem>
                   <SelectItem value="amount:desc">Amount — high to low</SelectItem>
                   <SelectItem value="amount:asc">Amount — low to high</SelectItem>
                   <SelectItem value="member:asc">Donor / member A→Z</SelectItem>
