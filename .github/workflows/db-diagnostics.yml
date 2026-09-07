@@ -21,57 +21,22 @@ jobs:
           fi
 
           psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 --no-psqlrc <<'SQL'
-          \echo '=== headline counts ==='
-          SELECT (SELECT count(*) FROM public.members)                        AS members,
-                 (SELECT count(*) FROM public.members WHERE is_active)        AS active_members,
-                 (SELECT count(*) FROM public.transactions)                   AS all_txns;
+          \echo '=== member 39 and 40 ==='
+          SELECT member_no, joining_date, monthly_fee, is_active
+          FROM public.members WHERE member_no IN (39, 40) ORDER BY member_no;
 
-          \echo '=== transactions per fund ==='
-          SELECT f.code, count(*) AS txns, sum(t.amount) AS total
+          \echo '=== member 39 transactions ==='
+          SELECT f.code, t.for_month, t.amount, t.txn_date, t.id
           FROM public.transactions t
-          JOIN public.funds f ON f.id = t.fund_id
-          GROUP BY f.code ORDER BY f.code;
-
-          \echo '=== members having MORE THAN ONE registration transaction ==='
-          SELECT m.member_no,
-                 count(*) AS reg_count,
-                 string_agg(
-                   to_char(t.for_month,'YYYY-MM') || ' amt=' || t.amount ||
-                   ' txn=' || t.txn_date || ' made=' || to_char(t.created_at,'YYYY-MM-DD HH24:MI'),
-                   ' | ' ORDER BY t.created_at) AS entries
-          FROM public.transactions t
-          JOIN public.funds f ON f.id = t.fund_id
           JOIN public.members m ON m.id = t.member_id
-          WHERE f.code = 'REGISTRATION'
-          GROUP BY m.member_no
-          HAVING count(*) > 1
-          ORDER BY m.member_no;
-
-          \echo '=== registration transactions grouped by when they were created ==='
-          SELECT to_char(t.created_at,'YYYY-MM-DD HH24:MI') AS created,
-                 t.description, count(*)
-          FROM public.transactions t
           JOIN public.funds f ON f.id = t.fund_id
-          WHERE f.code = 'REGISTRATION'
-          GROUP BY 1,2 ORDER BY 1;
+          WHERE m.member_no = 39
+          ORDER BY t.for_month;
 
-          \echo '=== registration transactions with no member link ==='
-          SELECT count(*) AS orphan_registration_txns
-          FROM public.transactions t
-          JOIN public.funds f ON f.id = t.fund_id
-          WHERE f.code = 'REGISTRATION' AND t.member_id IS NULL;
-
-          \echo '=== all members (no names: member_no only) ==='
-          SELECT m.member_no, m.joining_date, m.monthly_fee, m.is_active,
-                 to_char(m.created_at,'YYYY-MM-DD HH24:MI') AS created,
-                 (SELECT count(*) FROM public.transactions t
-                    JOIN public.funds f ON f.id = t.fund_id
-                   WHERE t.member_id = m.id AND f.code = 'REGISTRATION') AS reg_txns
-          FROM public.members m
-          ORDER BY m.member_no;
-
-          \echo '=== import audit log history ==='
-          SELECT to_char(created_at,'YYYY-MM-DD HH24:MI') AS created,
-                 action_type, file_name, records_processed, status, details
-          FROM public.audit_logs ORDER BY created_at;
+          \echo '=== member 39 subscriptions ==='
+          SELECT f.code, s.monthly_amount, s.start_date
+          FROM public.member_fund_subscriptions s
+          JOIN public.members m ON m.id = s.member_id
+          JOIN public.funds f ON f.id = s.fund_id
+          WHERE m.member_no = 39;
           SQL
