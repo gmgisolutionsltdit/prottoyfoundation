@@ -156,27 +156,41 @@ export default function BulkImport() {
     setExporting(true);
     let fileName = "";
     try {
-      const [mRes, fRes, tRes, tyRes] = await Promise.all([
-        supabase.from("members").select("id,member_no,full_name,reference_person,member_type_id,joining_date").order("member_no"),
+      const [mRes, fRes, tRes, tyRes, linkRes] = await Promise.all([
+        supabase.from("members").select("id,member_no,full_name,reference_person,joining_date").order("member_no"),
         supabase.from("funds").select("id,code,name,is_one_time"),
         supabase.from("transactions").select("member_id,fund_id,amount,txn_date,for_month").not("member_id", "is", null),
         supabase.from("member_types").select("id,name"),
+        supabase.from("member_member_types").select("member_id,member_type_id"),
       ]);
-      const err = mRes.error || fRes.error || tRes.error || tyRes.error;
+      const err = mRes.error || fRes.error || tRes.error || tyRes.error || linkRes.error;
       if (err) throw err;
 
       const funds = fRes.data ?? [];
       const regFundId = funds.find((f) => f.code === "REGISTRATION")?.id;
       const monthlyFundIds = new Set(funds.filter((f) => f.code.startsWith("MONTHLY_")).map((f) => f.id));
       const typeName = new Map((tyRes.data ?? []).map((t) => [t.id, t.name]));
+      const typeNamesByMember = new Map<string, Set<string>>();
+      for (const l of linkRes.data ?? []) {
+        const name = typeName.get(l.member_type_id);
+        if (!name) continue;
+        if (!typeNamesByMember.has(l.member_id)) typeNamesByMember.set(l.member_id, new Set());
+        typeNamesByMember.get(l.member_id)!.add(name);
+      }
 
       const byMember = new Map<string, ExportMember>();
       for (const m of mRes.data ?? []) {
+        const names = typeNamesByMember.get(m.id);
+        const memberType = names?.has("Founding") && names?.has("Executive")
+          ? "Founding & Executive"
+          : names?.size
+            ? [...names].join(" & ")
+            : "General";
         byMember.set(m.id, {
           member_no: m.member_no,
           full_name: m.full_name,
           reference_person: m.reference_person ?? null,
-          member_type: (m.member_type_id ? typeName.get(m.member_type_id) : null) ?? "General",
+          member_type: memberType,
           registration_fee: null,
           registration_date: null,
           monthly: {},
