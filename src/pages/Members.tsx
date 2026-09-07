@@ -132,8 +132,8 @@ export default function Members() {
       map.get(r.member_id)!.add(r.member_type_id);
     }
     setMemberTypeIds(map);
-    setFundsMap(new Map((fRes.data ?? []).map((f: any) => [f.id, f.name])));
-    setOneTimeFundIds(new Set((fRes.data ?? []).filter((f: any) => f.is_one_time).map((f: any) => f.id)));
+    setFundsMap(new Map((fRes.data ?? []).map((f) => [f.id, f.name])));
+    setOneTimeFundIds(new Set((fRes.data ?? []).filter((f) => f.is_one_time).map((f) => f.id)));
     const sMap = new Map<string, { fund_id: string; monthly_amount: number }[]>();
     for (const s of sRes.data ?? []) {
       const arr = sMap.get(s.member_id) ?? [];
@@ -182,7 +182,7 @@ export default function Members() {
       mobile: m.mobile ?? "",
       address: m.address ?? "",
       joining_date: m.joining_date,
-      reference_person: (m as any).reference_person ?? "",
+      reference_person: m.reference_person ?? "",
       notes: m.notes ?? "",
     });
     setSelectedTypeIds(new Set(memberTypeIds.get(m.id) ?? []));
@@ -221,7 +221,7 @@ export default function Members() {
     }
     setSubmitting(true);
     const v = parsed.data;
-    const payload: any = {
+    const payload: Database["public"]["Tables"]["members"]["Insert"] = {
       full_name: v.full_name,
       email: v.email || null,
       mobile: v.mobile || null,
@@ -229,10 +229,8 @@ export default function Members() {
       joining_date: v.joining_date,
       reference_person: v.reference_person || null,
       notes: v.notes || null,
+      ...(v.member_no && v.member_no.trim() !== "" ? { member_no: parseInt(v.member_no, 10) } : {}),
     };
-    if (v.member_no && v.member_no.trim() !== "") {
-      payload.member_no = parseInt(v.member_no, 10);
-    }
 
     try {
       let memberId = editing?.id;
@@ -249,7 +247,7 @@ export default function Members() {
       toast({ title: editing ? "Member updated" : "Member added" });
       setDialogOpen(false);
       void fetchAll();
-    } catch (err: any) {
+    } catch (err) {
       toast({ title: editing ? "Update failed" : "Create failed", description: safeErrorMessage(err), variant: "destructive" });
     }
     setSubmitting(false);
@@ -377,7 +375,7 @@ export default function Members() {
                         </div>
                       </TableCell>
                       <TableCell>{m.mobile ?? "—"}</TableCell>
-                      <TableCell>{(m as any).reference_person ?? "—"}</TableCell>
+                      <TableCell>{m.reference_person ?? "—"}</TableCell>
                       <TableCell>{m.joining_date}</TableCell>
                       <TableCell>
                         <div className="flex flex-wrap gap-1">

@@ -153,7 +153,7 @@ export default function Expenses() {
         await deleteAttachment(editing.attachment_url);
         attachment_url = null;
       }
-    } catch (err: any) {
+    } catch (err) {
       toast({ title: "Upload failed", description: safeErrorMessage(err), variant: "destructive" });
       setSubmitting(false);
       return;

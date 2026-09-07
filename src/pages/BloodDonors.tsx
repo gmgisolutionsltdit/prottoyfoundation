@@ -136,7 +136,12 @@ export default function BloodDonors() {
     }
     setSubmitting(true);
     const v = parsed.data;
-    const payload: any = {
+    const sl = v.sl && v.sl.trim() !== ""
+      ? parseInt(v.sl, 10)
+      : editing
+        ? editing.sl
+        : donors.reduce((m, d) => Math.max(m, d.sl), 0) + 1;
+    const payload: Database["public"]["Tables"]["blood_donors"]["Insert"] = {
       name: v.name,
       blood_group: v.blood_group,
       mobile: v.mobile || null,
@@ -146,26 +151,20 @@ export default function BloodDonors() {
       reference_mobile: v.reference_mobile || null,
       last_donation_date: v.last_donation_date || null,
       notes: v.notes || null,
+      sl,
     };
     try {
       if (editing) {
-        if (v.sl && v.sl.trim() !== "") payload.sl = parseInt(v.sl, 10);
         const { error } = await supabase.from("blood_donors").update(payload).eq("id", editing.id);
         if (error) throw error;
       } else {
-        if (v.sl && v.sl.trim() !== "") {
-          payload.sl = parseInt(v.sl, 10);
-        } else {
-          const maxSl = donors.reduce((m, d) => Math.max(m, d.sl), 0);
-          payload.sl = maxSl + 1;
-        }
         const { error } = await supabase.from("blood_donors").insert(payload);
         if (error) throw error;
       }
       toast({ title: editing ? "Donor updated" : "Donor added" });
       setDialogOpen(false);
       void fetchAll();
-    } catch (err: any) {
+    } catch (err) {
       toast({ title: editing ? "Update failed" : "Create failed", description: safeErrorMessage(err), variant: "destructive" });
     }
     setSubmitting(false);
