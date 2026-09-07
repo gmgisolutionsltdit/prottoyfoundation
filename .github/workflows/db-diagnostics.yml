@@ -1,5 +1,12 @@
 name: DB diagnostics (read-only)
 
+# Manual only. Runs a fixed set of read-only SELECTs against the database and
+# prints them to the run log, so data questions can be answered without giving
+# anyone a direct connection. No inputs, no writes.
+#
+# Edit the SQL below before dispatching when you need a specific check; it's
+# meant to be a scratch tool, not a stable report.
+
 on:
   workflow_dispatch: {}
 
@@ -17,15 +24,13 @@ jobs:
           fi
 
           psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 --no-psqlrc <<'SQL'
-          \echo '=== FULL DUMP: reg + monthly transactions, all members ==='
-          SELECT m.member_no, f.code, t.for_month, t.amount, t.txn_date
-          FROM public.transactions t
-          JOIN public.members m ON m.id = t.member_id
-          JOIN public.funds f ON f.id = t.fund_id
-          WHERE f.code IN ('REGISTRATION','MONTHLY_FOUNDING','MONTHLY_GENERAL')
-          ORDER BY m.member_no, f.code, t.for_month NULLS FIRST;
+          \echo '=== headline counts ==='
+          SELECT (SELECT count(*) FROM public.members)      AS members,
+                 (SELECT count(*) FROM public.transactions) AS all_txns;
 
-          \echo '=== members core fields ==='
-          SELECT member_no, joining_date, monthly_fee, is_active
-          FROM public.members ORDER BY member_no;
+          \echo '=== transactions per fund ==='
+          SELECT f.code, count(*) AS txns, sum(t.amount) AS total
+          FROM public.transactions t
+          JOIN public.funds f ON f.id = t.fund_id
+          GROUP BY f.code ORDER BY f.code;
           SQL
