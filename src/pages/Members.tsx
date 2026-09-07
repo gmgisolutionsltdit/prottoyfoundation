@@ -38,6 +38,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious,
+} from "@/components/ui/pagination";
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -92,6 +95,8 @@ export default function Members() {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("active");
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 25;
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Member | null>(null);
@@ -165,6 +170,17 @@ export default function Members() {
       );
     });
   }, [members, search, typeFilter, statusFilter, memberTypeIds]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, typeFilter, statusFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const pageRows = useMemo(
+    () => filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
+    [filtered, currentPage]
+  );
 
   function openCreate() {
     setEditing(null);
@@ -302,7 +318,9 @@ export default function Members() {
           <CardHeader>
             <CardTitle>Member list</CardTitle>
             <CardDescription>
-              {loading ? "Loading…" : `${filtered.length} of ${members.length} members`}
+              {loading
+                ? "Loading…"
+                : `${filtered.length} of ${members.length} members${totalPages > 1 ? ` · page ${currentPage} of ${totalPages}` : ""}`}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -359,7 +377,7 @@ export default function Members() {
                       </TableCell>
                     </TableRow>
                   )}
-                  {filtered.map((m) => (
+                  {pageRows.map((m) => (
                     <TableRow key={m.id}>
                       <TableCell className="font-mono">{m.member_no}</TableCell>
                       <TableCell>
@@ -412,6 +430,38 @@ export default function Members() {
                 </TableBody>
               </Table>
             </div>
+
+            {totalPages > 1 && (
+              <Pagination>
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious
+                      href="#"
+                      onClick={(e) => { e.preventDefault(); setPage((p) => Math.max(1, p - 1)); }}
+                      className={currentPage === 1 ? "pointer-events-none opacity-50" : undefined}
+                    />
+                  </PaginationItem>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                    <PaginationItem key={p}>
+                      <PaginationLink
+                        href="#"
+                        isActive={p === currentPage}
+                        onClick={(e) => { e.preventDefault(); setPage(p); }}
+                      >
+                        {p}
+                      </PaginationLink>
+                    </PaginationItem>
+                  ))}
+                  <PaginationItem>
+                    <PaginationNext
+                      href="#"
+                      onClick={(e) => { e.preventDefault(); setPage((p) => Math.min(totalPages, p + 1)); }}
+                      className={currentPage === totalPages ? "pointer-events-none opacity-50" : undefined}
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            )}
           </CardContent>
         </Card>
       </div>

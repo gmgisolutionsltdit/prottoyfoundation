@@ -18,6 +18,9 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import {
+  Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious,
+} from "@/components/ui/pagination";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -65,6 +68,8 @@ export default function Expenses() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [fundFilter, setFundFilter] = useState<string>("all");
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 25;
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState<FormValues>(empty);
@@ -111,6 +116,17 @@ export default function Expenses() {
   }, [rows, search, fundFilter]);
 
   const totals = useMemo(() => filtered.reduce((s, r) => s + Number(r.amount), 0), [filtered]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, fundFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const pageRows = useMemo(
+    () => filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
+    [filtered, currentPage]
+  );
 
   function openCreate() {
     setEditing(null);
@@ -205,7 +221,9 @@ export default function Expenses() {
           <CardHeader>
             <CardTitle>Expense entries</CardTitle>
             <CardDescription>
-              {loading ? "Loading…" : `${filtered.length} entries · Total ৳ ${formatBDT(totals)}`}
+              {loading
+                ? "Loading…"
+                : `${filtered.length} entries · Total ৳ ${formatBDT(totals)}${totalPages > 1 ? ` · page ${currentPage} of ${totalPages}` : ""}`}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -246,7 +264,7 @@ export default function Expenses() {
                       </TableCell>
                     </TableRow>
                   )}
-                  {filtered.map((r) => (
+                  {pageRows.map((r) => (
                     <TableRow key={r.id}>
                       <TableCell>{formatDMY(r.expense_date)}</TableCell>
                       <TableCell>{r.fund?.name ?? "—"}</TableCell>
@@ -274,6 +292,38 @@ export default function Expenses() {
                 </TableBody>
               </Table>
             </div>
+
+            {totalPages > 1 && (
+              <Pagination>
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious
+                      href="#"
+                      onClick={(e) => { e.preventDefault(); setPage((p) => Math.max(1, p - 1)); }}
+                      className={currentPage === 1 ? "pointer-events-none opacity-50" : undefined}
+                    />
+                  </PaginationItem>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                    <PaginationItem key={p}>
+                      <PaginationLink
+                        href="#"
+                        isActive={p === currentPage}
+                        onClick={(e) => { e.preventDefault(); setPage(p); }}
+                      >
+                        {p}
+                      </PaginationLink>
+                    </PaginationItem>
+                  ))}
+                  <PaginationItem>
+                    <PaginationNext
+                      href="#"
+                      onClick={(e) => { e.preventDefault(); setPage((p) => Math.min(totalPages, p + 1)); }}
+                      className={currentPage === totalPages ? "pointer-events-none opacity-50" : undefined}
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            )}
           </CardContent>
         </Card>
       </div>
