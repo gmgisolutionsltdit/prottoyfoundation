@@ -134,11 +134,13 @@ export function parseRegAndMonthly(fileName: string, data: ArrayBuffer): ParseRe
   }
 
   const header = grid[0] as unknown[];
-  // Discover (dateCol, amountCol) pairs from the header row.
+  // Discover (amountCol, dateCol) pairs from the header row. Layout is
+  // Fee, Date, <Month_Year>, Date, <Month_Year>, Date, ... — each amount
+  // column is immediately followed by its own date column.
   const monthCols: { ym: string; dateCol: number; amountCol: number }[] = [];
   for (let c = 5; c < header.length; c++) {
     const ym = headerToYm(String(header[c] ?? ""));
-    if (ym) monthCols.push({ ym, dateCol: c - 1, amountCol: c });
+    if (ym) monthCols.push({ ym, dateCol: c + 1, amountCol: c });
   }
   if (monthCols.length === 0) {
     issues.push({ level: "error", excelRow: 1, message: "No Month_Year columns detected in the header row." });
