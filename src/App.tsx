@@ -16,6 +16,7 @@ import Expenses from "./pages/Expenses";
 import MemberTypes from "./pages/MemberTypes";
 import Dues from "./pages/Dues";
 import Reconciliation from "./pages/Reconciliation";
+import Meetings from "./pages/Meetings";
 import BulkImport from "./pages/BulkImport";
 import Users from "./pages/Users";
 import BloodDonors from "./pages/BloodDonors";
@@ -42,6 +43,7 @@ const App = () => (
             <Route path="/member-types" element={<ProtectedRoute><MemberTypes /></ProtectedRoute>} />
             <Route path="/dues" element={<ProtectedRoute><Dues /></ProtectedRoute>} />
             <Route path="/reconciliation" element={<ProtectedRoute><Reconciliation /></ProtectedRoute>} />
+            <Route path="/meetings" element={<ProtectedRoute><Meetings /></ProtectedRoute>} />
             <Route path="/bulk-import" element={<ProtectedRoute><BulkImport /></ProtectedRoute>} />
 
             <Route path="/blood-donors" element={<ProtectedRoute><BloodDonors /></ProtectedRoute>} />

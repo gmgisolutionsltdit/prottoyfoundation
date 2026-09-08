@@ -17,6 +17,7 @@ import {
   Droplet,
   FileSpreadsheet,
   Menu,
+  CalendarClock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -29,6 +30,7 @@ const navItems = [
   { to: "/expenses", label: "Expenses", icon: ArrowUpCircle },
   { to: "/dues", label: "Dues", icon: Receipt },
   { to: "/reconciliation", label: "Reconciliation", icon: Scale },
+  { to: "/meetings", label: "Meetings", icon: CalendarClock },
   { to: "/bulk-import", label: "Import / Export", icon: FileSpreadsheet },
   { to: "/blood-donors", label: "Blood Donors", icon: Droplet },
 ];

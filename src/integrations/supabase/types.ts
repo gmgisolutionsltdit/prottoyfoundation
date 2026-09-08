@@ -214,6 +214,148 @@ export type Database = {
         }
         Relationships: []
       }
+      meetings: {
+        Row: {
+          created_at: string
+          duration: string | null
+          id: string
+          location: string | null
+          meeting_date: string
+          meeting_no: number
+          next_meeting_date: string | null
+          next_meeting_duration: string | null
+          next_meeting_location: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          duration?: string | null
+          id?: string
+          location?: string | null
+          meeting_date: string
+          meeting_no: number
+          next_meeting_date?: string | null
+          next_meeting_duration?: string | null
+          next_meeting_location?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          duration?: string | null
+          id?: string
+          location?: string | null
+          meeting_date?: string
+          meeting_no?: number
+          next_meeting_date?: string | null
+          next_meeting_duration?: string | null
+          next_meeting_location?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      meeting_agenda_items: {
+        Row: {
+          agenda: string | null
+          created_at: string
+          decision_summary: string | null
+          id: string
+          meeting_id: string
+          sort_order: number
+        }
+        Insert: {
+          agenda?: string | null
+          created_at?: string
+          decision_summary?: string | null
+          id?: string
+          meeting_id: string
+          sort_order?: number
+        }
+        Update: {
+          agenda?: string | null
+          created_at?: string
+          decision_summary?: string | null
+          id?: string
+          meeting_id?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meeting_agenda_items_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "meetings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meeting_next_agenda_items: {
+        Row: {
+          created_at: string
+          id: string
+          item: string
+          meeting_id: string
+          sort_order: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          item: string
+          meeting_id: string
+          sort_order?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          item?: string
+          meeting_id?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meeting_next_agenda_items_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "meetings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meeting_attendance: {
+        Row: {
+          created_at: string
+          is_present: boolean
+          meeting_id: string
+          member_id: string
+        }
+        Insert: {
+          created_at?: string
+          is_present?: boolean
+          meeting_id: string
+          member_id: string
+        }
+        Update: {
+          created_at?: string
+          is_present?: boolean
+          meeting_id?: string
+          member_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meeting_attendance_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "meetings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meeting_attendance_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       member_fund_subscriptions: {
         Row: {
           created_at: string
