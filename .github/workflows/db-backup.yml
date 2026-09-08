@@ -32,7 +32,28 @@ jobs:
           mkdir -p backup
           STAMP=$(date -u +%Y-%m-%d_%H%M%S)
           echo "STAMP=$STAMP" >> "$GITHUB_ENV"
-          supabase db dump --db-url "$SUPABASE_DB_URL" -f "backup/prottoy_backup_${STAMP}.sql"
+          OUT="backup/prottoy_backup_${STAMP}.sql"
+
+          # `supabase db dump` without --data-only only dumps the schema
+          # (tables, policies, functions, etc.) — no rows. Data has to be
+          # dumped separately with --data-only. We scope the data dump to
+          # the public schema only, since that's where all application data
+          # lives; the auth/storage schemas are Supabase-managed and dumping
+          # auth.users would put hashed credentials into a downloadable
+          # artifact, which we don't want.
+          supabase db dump --db-url "$SUPABASE_DB_URL" -f "$OUT"
+          supabase db dump --db-url "$SUPABASE_DB_URL" --data-only -s public -f backup/data_only.sql
+
+          {
+            echo "-- Schema + data snapshot, $STAMP UTC"
+            echo "-- Schema: all schemas. Data: public schema only."
+            cat "$OUT"
+            echo
+            echo "-- ===== DATA (public schema) ====="
+            cat backup/data_only.sql
+          } > backup/combined.sql
+          mv backup/combined.sql "$OUT"
+          rm -f backup/data_only.sql
           ls -lh backup/
 
       - name: Upload backup artifact
