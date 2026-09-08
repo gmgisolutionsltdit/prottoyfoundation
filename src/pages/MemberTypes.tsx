@@ -66,6 +66,11 @@ export default function MemberTypes() {
 
   useEffect(() => {
     document.title = "Member Types | Prottoy Foundation";
+    // Section 12.1 — reset any open modal state when this route mounts.
+    setOpen(false);
+    setEditing(null);
+    setDeleteTarget(null);
+
     fetchRows();
   }, []);
 

@@ -99,10 +99,13 @@ export default function Income() {
   const [search, setSearch] = useState("");
   const [fundFilter, setFundFilter] = useState<string>("all");
   const [monthFilter, setMonthFilter] = useState<string>("");
+  // Section 6.1 — From/To date-range filter (independent of the single Target Month filter above).
+  const [fromDate, setFromDate] = useState<string>("");
+  const [toDate, setToDate] = useState<string>("");
   const [sortBy, setSortBy] = useState<"date" | "amount" | "member" | "for_month">("date");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [page, setPage] = useState(1);
-  const PAGE_SIZE = 25;
+  const [pageSize, setPageSize] = useState(25);
 
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -153,6 +156,9 @@ export default function Income() {
       if (fundFilter !== "all" && r.fund_id !== fundFilter) return false;
       // Section 1 / 12.5 — Target Month filter.
       if (monthFilter && String(r.txn_date).slice(0, 7) !== monthFilter) return false;
+      // Section 6.1 — From/To date range filter.
+      if (fromDate && String(r.txn_date) < fromDate) return false;
+      if (toDate && String(r.txn_date) > toDate) return false;
       if (!q) return true;
       return (
         (r.donor_name ?? "").toLowerCase().includes(q) ||
@@ -177,7 +183,7 @@ export default function Income() {
       }
       return String(a.txn_date).localeCompare(String(b.txn_date)) * dir;
     });
-  }, [rows, search, fundFilter, monthFilter, sortBy, sortDir]);
+  }, [rows, search, fundFilter, monthFilter, fromDate, toDate, sortBy, sortDir]);
 
 
   const totals = useMemo(
@@ -187,13 +193,13 @@ export default function Income() {
 
   useEffect(() => {
     setPage(1);
-  }, [search, fundFilter, monthFilter, sortBy, sortDir]);
+  }, [search, fundFilter, monthFilter, fromDate, toDate, sortBy, sortDir, pageSize]);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const currentPage = Math.min(page, totalPages);
   const pageRows = useMemo(
-    () => filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
-    [filtered, currentPage]
+    () => filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize),
+    [filtered, currentPage, pageSize]
   );
 
   function openCreate() {
@@ -408,6 +414,36 @@ export default function Income() {
                 </SelectContent>
               </Select>
 
+            </div>
+
+            {/* Section 6.1 — From/To transaction-date range filter. */}
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <div className="flex items-center gap-2">
+                <Label htmlFor="fromDate" className="text-xs text-muted-foreground whitespace-nowrap">From</Label>
+                <Input id="fromDate" type="date" className="w-full sm:w-40"
+                  value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+              </div>
+              <div className="flex items-center gap-2">
+                <Label htmlFor="toDate" className="text-xs text-muted-foreground whitespace-nowrap">To</Label>
+                <Input id="toDate" type="date" className="w-full sm:w-40"
+                  value={toDate} onChange={(e) => setToDate(e.target.value)} />
+              </div>
+              {(fromDate || toDate) && (
+                <Button variant="ghost" size="sm" onClick={() => { setFromDate(""); setToDate(""); }}>
+                  Clear range
+                </Button>
+              )}
+              <div className="flex items-center gap-2 sm:ml-auto">
+                <Label htmlFor="pageSize" className="text-xs text-muted-foreground">Rows per page</Label>
+                <Select value={String(pageSize)} onValueChange={(v) => setPageSize(Number(v))}>
+                  <SelectTrigger id="pageSize" className="w-20"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="10">10</SelectItem>
+                    <SelectItem value="25">25</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             <div className="rounded-md border">

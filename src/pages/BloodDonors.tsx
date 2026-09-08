@@ -75,6 +75,11 @@ export default function BloodDonors() {
 
   useEffect(() => {
     document.title = "Blood Donors | Prottoy Foundation";
+    // Section 12.1 — reset any open modal state when this route mounts.
+    setDialogOpen(false);
+    setEditing(null);
+    setDeleteTarget(null);
+
     void fetchAll();
   }, []);
 

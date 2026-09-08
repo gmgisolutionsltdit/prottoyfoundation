@@ -87,6 +87,11 @@ export default function Meetings() {
 
   useEffect(() => {
     document.title = "Meetings | Prottoy Foundation";
+    // Section 12.1 — reset any open modal state when this route mounts.
+    setDialogOpen(false);
+    setEditing(null);
+    setDeleteTarget(null);
+
     void fetchAll();
   }, []);
 

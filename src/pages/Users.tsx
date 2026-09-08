@@ -90,6 +90,10 @@ export default function UsersPage() {
   };
 
   useEffect(() => {
+    // Section 12.1 — reset any open modal state when this route mounts.
+    setCreateOpen(false);
+    setResetTarget(null);
+
     load();
   }, []);
 

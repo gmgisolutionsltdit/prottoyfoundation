@@ -68,8 +68,11 @@ export default function Expenses() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [fundFilter, setFundFilter] = useState<string>("all");
+  // Section 6.1 — From/To date-range filter.
+  const [fromDate, setFromDate] = useState<string>("");
+  const [toDate, setToDate] = useState<string>("");
   const [page, setPage] = useState(1);
-  const PAGE_SIZE = 25;
+  const [pageSize, setPageSize] = useState(25);
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState<FormValues>(empty);
@@ -105,6 +108,9 @@ export default function Expenses() {
     const q = search.trim().toLowerCase();
     return rows.filter((r) => {
       if (fundFilter !== "all" && r.fund_id !== fundFilter) return false;
+      // Section 6.1 — From/To date range filter.
+      if (fromDate && String(r.expense_date) < fromDate) return false;
+      if (toDate && String(r.expense_date) > toDate) return false;
       if (!q) return true;
       return (
         (r.payee ?? "").toLowerCase().includes(q) ||
@@ -113,19 +119,19 @@ export default function Expenses() {
         (r.fund?.name ?? "").toLowerCase().includes(q)
       );
     });
-  }, [rows, search, fundFilter]);
+  }, [rows, search, fundFilter, fromDate, toDate]);
 
   const totals = useMemo(() => filtered.reduce((s, r) => s + Number(r.amount), 0), [filtered]);
 
   useEffect(() => {
     setPage(1);
-  }, [search, fundFilter]);
+  }, [search, fundFilter, fromDate, toDate, pageSize]);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const currentPage = Math.min(page, totalPages);
   const pageRows = useMemo(
-    () => filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
-    [filtered, currentPage]
+    () => filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize),
+    [filtered, currentPage, pageSize]
   );
 
   function openCreate() {
@@ -240,6 +246,36 @@ export default function Expenses() {
                   {funds.map((f) => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}
                 </SelectContent>
               </Select>
+            </div>
+
+            {/* Section 6.1 — From/To expense-date range filter. */}
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <div className="flex items-center gap-2">
+                <Label htmlFor="fromDate" className="text-xs text-muted-foreground whitespace-nowrap">From</Label>
+                <Input id="fromDate" type="date" className="w-full sm:w-40"
+                  value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+              </div>
+              <div className="flex items-center gap-2">
+                <Label htmlFor="toDate" className="text-xs text-muted-foreground whitespace-nowrap">To</Label>
+                <Input id="toDate" type="date" className="w-full sm:w-40"
+                  value={toDate} onChange={(e) => setToDate(e.target.value)} />
+              </div>
+              {(fromDate || toDate) && (
+                <Button variant="ghost" size="sm" onClick={() => { setFromDate(""); setToDate(""); }}>
+                  Clear range
+                </Button>
+              )}
+              <div className="flex items-center gap-2 sm:ml-auto">
+                <Label htmlFor="pageSize" className="text-xs text-muted-foreground">Rows per page</Label>
+                <Select value={String(pageSize)} onValueChange={(v) => setPageSize(Number(v))}>
+                  <SelectTrigger id="pageSize" className="w-20"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="10">10</SelectItem>
+                    <SelectItem value="25">25</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             <div className="rounded-md border">

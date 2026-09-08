@@ -96,7 +96,7 @@ export default function Members() {
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("active");
   const [page, setPage] = useState(1);
-  const PAGE_SIZE = 25;
+  const [pageSize, setPageSize] = useState(25);
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Member | null>(null);
@@ -115,6 +115,13 @@ export default function Members() {
 
   useEffect(() => {
     document.title = "Members | Prottoy Foundation";
+    // Section 12.1 — reset any open modal state when this route mounts.
+    setDialogOpen(false);
+    setEditing(null);
+    setToggleTarget(null);
+    setDeleteTarget(null);
+    setSubsTarget(null);
+
     void fetchAll();
   }, []);
 
@@ -173,13 +180,13 @@ export default function Members() {
 
   useEffect(() => {
     setPage(1);
-  }, [search, typeFilter, statusFilter]);
+  }, [search, typeFilter, statusFilter, pageSize]);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const currentPage = Math.min(page, totalPages);
   const pageRows = useMemo(
-    () => filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
-    [filtered, currentPage]
+    () => filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize),
+    [filtered, currentPage, pageSize]
   );
 
   function openCreate() {
@@ -351,6 +358,17 @@ export default function Members() {
                   <SelectItem value="all">All</SelectItem>
                 </SelectContent>
               </Select>
+              <div className="flex items-center gap-2">
+                <Label htmlFor="pageSize" className="text-xs text-muted-foreground whitespace-nowrap">Rows per page</Label>
+                <Select value={String(pageSize)} onValueChange={(v) => setPageSize(Number(v))}>
+                  <SelectTrigger id="pageSize" className="w-20"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="10">10</SelectItem>
+                    <SelectItem value="25">25</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             <div className="rounded-md border">

@@ -5,10 +5,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Image as ImageIcon, FileDown } from "lucide-react";
+import { Image as ImageIcon, FileDown, ChevronDown } from "lucide-react";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious,
@@ -56,10 +59,14 @@ export default function Dues() {
   const today = new Date();
   const defaultEnd = dateToYm(today);
   const [memberFilter, setMemberFilter] = useState<string>(ALL);
-  const [fundFilter, setFundFilter] = useState<string>(ALL);
+  // Section 2.1 — multi-select fund filter; empty set means "all funds".
+  const [fundFilters, setFundFilters] = useState<Set<string>>(new Set());
   const [endMonth, setEndMonth] = useState<string>(defaultEnd);
+  // Section 2.2 — sorting.
+  const [sortBy, setSortBy] = useState<"member" | "amount" | "date" | "status" | "fund">("member");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [page, setPage] = useState(1);
-  const MEMBERS_PER_PAGE = 10;
+  const [pageSize, setPageSize] = useState(10);
 
   useEffect(() => {
     document.title = "Dues | Prottoy Foundation";
@@ -89,7 +96,7 @@ export default function Dues() {
   const rows = useMemo(() => {
     return subs
       .filter((s) => memberFilter === ALL || s.member_id === memberFilter)
-      .filter((s) => fundFilter === ALL || s.fund_id === fundFilter)
+      .filter((s) => fundFilters.size === 0 || fundFilters.has(s.fund_id))
       .map((s) => {
         const fund = fundMap.get(s.fund_id);
         const member = memberMap.get(s.member_id);
@@ -147,12 +154,26 @@ export default function Dues() {
 
       })
 
-      .sort((a, b) => a.memberNo - b.memberNo || a.fundName.localeCompare(b.fundName));
-  }, [subs, txns, memberFilter, fundFilter, endMonth, memberMap, fundMap]);
+      .sort((a, b) => {
+        const dir = sortDir === "asc" ? 1 : -1;
+        let cmp = 0;
+        if (sortBy === "member") cmp = a.memberName.localeCompare(b.memberName);
+        else if (sortBy === "amount") cmp = a.due - b.due;
+        else if (sortBy === "date") cmp = a.joiningYm.localeCompare(b.joiningYm);
+        else if (sortBy === "fund") cmp = a.fundName.localeCompare(b.fundName);
+        else if (sortBy === "status") {
+          const rank = (due: number) => (due > 0 ? 2 : due < 0 ? 1 : 0);
+          cmp = rank(a.due) - rank(b.due);
+        }
+        if (cmp !== 0) return cmp * dir;
+        // Stable tiebreaker keeps a member's fund rows grouped together.
+        return a.memberNo - b.memberNo || a.fundName.localeCompare(b.fundName);
+      });
+  }, [subs, txns, memberFilter, fundFilters, endMonth, memberMap, fundMap, sortBy, sortDir]);
 
   useEffect(() => {
     setPage(1);
-  }, [memberFilter, fundFilter, endMonth]);
+  }, [memberFilter, fundFilters, endMonth, sortBy, sortDir, pageSize]);
 
   const pageMemberIds = useMemo(() => {
     const seen = new Set<string>();
@@ -166,12 +187,12 @@ export default function Dues() {
     return ids;
   }, [rows]);
 
-  const totalPages = Math.max(1, Math.ceil(pageMemberIds.length / MEMBERS_PER_PAGE));
+  const totalPages = Math.max(1, Math.ceil(pageMemberIds.length / pageSize));
   const currentPage = Math.min(page, totalPages);
 
   const visibleMemberIds = useMemo(
-    () => new Set(pageMemberIds.slice((currentPage - 1) * MEMBERS_PER_PAGE, currentPage * MEMBERS_PER_PAGE)),
-    [pageMemberIds, currentPage]
+    () => new Set(pageMemberIds.slice((currentPage - 1) * pageSize, currentPage * pageSize)),
+    [pageMemberIds, currentPage, pageSize]
   );
 
   const pageRows = useMemo(() => rows.filter((r) => visibleMemberIds.has(r.memberId)), [rows, visibleMemberIds]);
@@ -265,7 +286,7 @@ export default function Dues() {
             <CardDescription>Calculated up to the selected month (inclusive).</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-4">
               <div className="grid gap-2">
                 <Label>Member</Label>
                 <Select value={memberFilter} onValueChange={setMemberFilter}>
@@ -282,15 +303,51 @@ export default function Dues() {
               </div>
               <div className="grid gap-2">
                 <Label>Fund</Label>
-                <Select value={fundFilter} onValueChange={setFundFilter}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={ALL}>All funds</SelectItem>
-                    {funds.map((f) => (
-                      <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button type="button" variant="outline" className="justify-between font-normal">
+                      <span className="truncate text-left">
+                        {fundFilters.size === 0
+                          ? "All funds"
+                          : [...fundFilters].map((id) => fundMap.get(id)?.name ?? "?").join(", ")}
+                      </span>
+                      <ChevronDown className="h-4 w-4 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-64 p-2" align="start">
+                    <div className="max-h-64 space-y-1 overflow-auto">
+                      <label className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 hover:bg-accent">
+                        <Checkbox
+                          checked={fundFilters.size === 0}
+                          onCheckedChange={() => setFundFilters(new Set())}
+                        />
+                        <span className="text-sm font-medium">All funds</span>
+                      </label>
+                      {funds.map((f) => (
+                        <label key={f.id} className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 hover:bg-accent">
+                          <Checkbox
+                            checked={fundFilters.has(f.id)}
+                            onCheckedChange={() =>
+                              setFundFilters((prev) => {
+                                const next = new Set(prev);
+                                if (next.has(f.id)) next.delete(f.id); else next.add(f.id);
+                                return next;
+                              })
+                            }
+                          />
+                          <span className="text-sm">{f.name}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+                {fundFilters.size > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {[...fundFilters].map((id) => (
+                      <Badge key={id} variant="secondary">{fundMap.get(id)?.name ?? "?"}</Badge>
                     ))}
-                  </SelectContent>
-                </Select>
+                  </div>
+                )}
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="endMonth">Up to month</Label>
@@ -300,6 +357,27 @@ export default function Dues() {
                   value={endMonth}
                   onChange={(e) => setEndMonth(e.target.value)}
                 />
+              </div>
+              <div className="grid gap-2">
+                <Label>Sort by</Label>
+                <Select value={`${sortBy}:${sortDir}`} onValueChange={(v) => {
+                  const [by, dir] = v.split(":");
+                  setSortBy(by as typeof sortBy);
+                  setSortDir(dir as "asc" | "desc");
+                }}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="member:asc">Member — A→Z</SelectItem>
+                    <SelectItem value="member:desc">Member — Z→A</SelectItem>
+                    <SelectItem value="amount:desc">Due amount — high to low</SelectItem>
+                    <SelectItem value="amount:asc">Due amount — low to high</SelectItem>
+                    <SelectItem value="date:desc">Joining date — newest first</SelectItem>
+                    <SelectItem value="date:asc">Joining date — oldest first</SelectItem>
+                    <SelectItem value="status:desc">Status — due first</SelectItem>
+                    <SelectItem value="status:asc">Status — settled first</SelectItem>
+                    <SelectItem value="fund:asc">Fund — A→Z</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </CardContent>
@@ -330,7 +408,7 @@ export default function Dues() {
                 <div className="mb-3">
                   <p className="text-base font-semibold">Member Dues — up to {new Date(`${endMonth}-01T00:00:00`).toLocaleString("en-US", { month: "long", year: "numeric" })}</p>
                   <p className="text-xs text-muted-foreground">
-                    {memberFilter === ALL ? "All members" : memberMap.get(memberFilter)?.full_name} · {fundFilter === ALL ? "All funds" : fundMap.get(fundFilter)?.name} · {rows.length} rows
+                    {memberFilter === ALL ? "All members" : memberMap.get(memberFilter)?.full_name} · {fundFilters.size === 0 ? "All funds" : [...fundFilters].map((id) => fundMap.get(id)?.name ?? "?").join(", ")} · {rows.length} rows
                   </p>
                 </div>
               <Table className="min-w-max">
@@ -396,6 +474,20 @@ export default function Dues() {
                   )}
                 </TableBody>
               </Table>
+              </div>
+            </div>
+
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Label htmlFor="pageSize" className="text-xs text-muted-foreground">Rows per page</Label>
+                <Select value={String(pageSize)} onValueChange={(v) => setPageSize(Number(v))}>
+                  <SelectTrigger id="pageSize" className="w-20"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="10">10</SelectItem>
+                    <SelectItem value="25">25</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 

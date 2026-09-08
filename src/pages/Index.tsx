@@ -4,6 +4,8 @@ import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { Loader2, TrendingUp, TrendingDown, Wallet } from "lucide-react";
 
@@ -45,6 +47,9 @@ export default function Index() {
   const [expenses, setExpenses] = useState<Txn[]>([]);
   const [loading, setLoading] = useState(true);
   const [month, setMonth] = useState<string>(ALL);
+  // Section 6.2 — custom date range filter, independent of the month dropdown.
+  const [fromDate, setFromDate] = useState<string>("");
+  const [toDate, setToDate] = useState<string>("");
 
   useEffect(() => {
     const load = async () => {
@@ -69,8 +74,17 @@ export default function Index() {
     return Array.from(set).sort().reverse();
   }, [incomes, expenses]);
 
+  const hasCustomRange = !!(fromDate || toDate);
+
   const summaries: FundSummary[] = useMemo(() => {
-    const filterFn = (t: Txn) => month === ALL || monthKey(t.date) === month;
+    const filterFn = (t: Txn) => {
+      if (hasCustomRange) {
+        if (fromDate && t.date < fromDate) return false;
+        if (toDate && t.date > toDate) return false;
+        return true;
+      }
+      return month === ALL || monthKey(t.date) === month;
+    };
     const incomeMap = new Map<string, number>();
     incomes.filter(filterFn).forEach((t) => {
       incomeMap.set(t.fund_id, (incomeMap.get(t.fund_id) ?? 0) + t.amount);
@@ -84,7 +98,7 @@ export default function Index() {
       const expense = expenseMap.get(f.id) ?? 0;
       return { id: f.id, name: f.name, income, expense, balance: income - expense };
     });
-  }, [funds, incomes, expenses, month]);
+  }, [funds, incomes, expenses, month, hasCustomRange, fromDate, toDate]);
 
   const totals = summaries.reduce(
     (acc, s) => ({
@@ -105,19 +119,37 @@ export default function Index() {
             {!isAdmin && " (Awaiting admin role)"}
           </p>
         </div>
-        <div className="flex flex-col gap-1">
-          <Label htmlFor="month-filter" className="text-xs text-muted-foreground">Filter by month</Label>
-          <Select value={month} onValueChange={setMonth}>
-            <SelectTrigger id="month-filter" className="w-[220px]">
-              <SelectValue placeholder="All time" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL}>All time</SelectItem>
-              {monthOptions.map((m) => (
-                <SelectItem key={m} value={m}>{monthLabel(m)}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="month-filter" className="text-xs text-muted-foreground">Filter by month</Label>
+            <Select value={month} onValueChange={setMonth} disabled={hasCustomRange}>
+              <SelectTrigger id="month-filter" className="w-[220px]">
+                <SelectValue placeholder="All time" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL}>All time</SelectItem>
+                {monthOptions.map((m) => (
+                  <SelectItem key={m} value={m}>{monthLabel(m)}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          {/* Section 6.2 — custom date range, overrides the month dropdown when set. */}
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="dash-from" className="text-xs text-muted-foreground">From</Label>
+            <Input id="dash-from" type="date" className="w-[160px]"
+              value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+          </div>
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="dash-to" className="text-xs text-muted-foreground">To</Label>
+            <Input id="dash-to" type="date" className="w-[160px]"
+              value={toDate} onChange={(e) => setToDate(e.target.value)} />
+          </div>
+          {hasCustomRange && (
+            <Button variant="ghost" size="sm" onClick={() => { setFromDate(""); setToDate(""); }}>
+              Clear range
+            </Button>
+          )}
         </div>
       </div>
 
@@ -158,7 +190,14 @@ export default function Index() {
           </div>
 
           <h3 className="mb-3 text-lg font-semibold">
-            Fund Balances {month !== ALL && <span className="text-sm font-normal text-muted-foreground">— {monthLabel(month)}</span>}
+            Fund Balances{" "}
+            {hasCustomRange ? (
+              <span className="text-sm font-normal text-muted-foreground">
+                — {fromDate || "…"} to {toDate || "…"}
+              </span>
+            ) : (
+              month !== ALL && <span className="text-sm font-normal text-muted-foreground">— {monthLabel(month)}</span>
+            )}
           </h3>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {summaries.map((s) => (
