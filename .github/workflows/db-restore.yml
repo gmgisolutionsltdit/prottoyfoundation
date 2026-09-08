@@ -154,6 +154,7 @@ jobs:
             exit 1
           fi
 
+          echo "DEBUG head of data_section.sql:"; head -c 2000 data_section.sql | cat -A | head -40
           grep -oP '^COPY public\.\K[a-zA-Z_0-9]+' data_section.sql | sort -u > backup_tables.txt
           echo "Tables in backup:"; cat backup_tables.txt
 
