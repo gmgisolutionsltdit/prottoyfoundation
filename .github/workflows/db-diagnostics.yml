@@ -1,12 +1,5 @@
 name: DB diagnostics (read-only)
 
-# Manual only. Runs a fixed set of read-only SELECTs against the database and
-# prints them to the run log, so data questions can be answered without giving
-# anyone a direct connection. No inputs, no writes.
-#
-# Edit the SQL below before dispatching when you need a specific check; it's
-# meant to be a scratch tool, not a stable report.
-
 on:
   workflow_dispatch: {}
 
@@ -24,13 +17,19 @@ jobs:
           fi
 
           psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 --no-psqlrc <<'SQL'
-          \echo '=== headline counts ==='
-          SELECT (SELECT count(*) FROM public.members)      AS members,
-                 (SELECT count(*) FROM public.transactions) AS all_txns;
+          \echo '=== meetings totals ==='
+          SELECT (SELECT count(*) FROM public.meetings) meetings,
+                 (SELECT count(*) FROM public.meeting_agenda_items) agenda,
+                 (SELECT count(*) FROM public.meeting_next_agenda_items) next_agenda,
+                 (SELECT count(*) FROM public.meeting_attendance) attendance,
+                 (SELECT count(*) FROM public.meeting_attendance WHERE is_present) present;
 
-          \echo '=== transactions per fund ==='
-          SELECT f.code, count(*) AS txns, sum(t.amount) AS total
-          FROM public.transactions t
-          JOIN public.funds f ON f.id = t.fund_id
-          GROUP BY f.code ORDER BY f.code;
+          \echo '=== meeting 1 sample ==='
+          SELECT meeting_no, meeting_date, location, duration FROM public.meetings WHERE meeting_no = 1;
+
+          \echo '=== meeting 1 attendance ==='
+          SELECT mem.full_name FROM public.meeting_attendance ma
+          JOIN public.meetings m ON m.id = ma.meeting_id
+          JOIN public.members mem ON mem.id = ma.member_id
+          WHERE m.meeting_no = 1 AND ma.is_present ORDER BY mem.full_name;
           SQL
