@@ -6,30 +6,62 @@ name: Export data (JSON dump for Excel backup)
 # workbook with one sheet per table for the user to keep as a human-usable
 # backup of the live business data.
 #
-# Dumps every row of each listed table as one JSON object per line via
-# `to_jsonb(t)`, which is schema-agnostic (works no matter what columns a
-# table has, so this file doesn't need updating when columns change) and
-# keeps each row on exactly one physical log line — Postgres's COPY TEXT
-# format backslash-escapes embedded newlines/tabs, so multi-line text
-# fields (addresses, notes, etc.) can't break the line-per-row structure.
+# Dumps ONE table (or a LIMIT/OFFSET slice of it, for large tables — the
+# job-log fetch tool truncates to roughly the last ~500 lines of output, so
+# large tables need to be pulled in chunks across multiple dispatches) as
+# one JSON object per line via `to_jsonb(t)`, which is schema-agnostic
+# (works no matter what columns a table has) and keeps each row on exactly
+# one physical log line — Postgres's COPY TEXT format backslash-escapes
+# embedded newlines/tabs, so multi-line text fields can't break the
+# line-per-row structure (the escaping must be undone before JSON-parsing
+# each line: replace every run of 2 literal backslashes with 1).
+#
+# ORDER BY t::text (not a real column) is deterministic and needs no
+# knowledge of a table's actual columns/PK shape, so this file works
+# unmodified against any table.
 
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      table:
+        description: "public schema table name to dump"
+        required: true
+        type: string
+      row_offset:
+        description: "rows to skip (for paginating a large table)"
+        required: false
+        type: string
+        default: "0"
+      row_limit:
+        description: "max rows to dump in this run"
+        required: false
+        type: string
+        default: "300"
 
 jobs:
   export:
     runs-on: ubuntu-latest
     steps:
-      - name: Dump tables as JSON lines
+      - name: Dump table slice as JSON lines
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          TABLE: ${{ inputs.table }}
+          ROW_OFFSET: ${{ inputs.row_offset }}
+          ROW_LIMIT: ${{ inputs.row_limit }}
         run: |
           if [ -z "$SUPABASE_DB_URL" ]; then
             echo "::error::Repository secret SUPABASE_DB_URL is not set."
             exit 1
           fi
-          for t in members member_types member_member_types funds member_fund_subscriptions transactions expenses receipts blood_donors meetings meeting_agenda_items meeting_attendance meeting_next_agenda_items; do
-            echo "===TABLE:${t}==="
-            psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 --no-psqlrc -c "COPY (SELECT to_jsonb(t) FROM public.${t} t) TO STDOUT"
-            echo "===ENDTABLE:${t}==="
-          done
+          if ! [[ "$TABLE" =~ ^[a-z_][a-z0-9_]*$ ]]; then
+            echo "::error::Invalid table name: $TABLE"
+            exit 1
+          fi
+          if ! [[ "$ROW_OFFSET" =~ ^[0-9]+$ && "$ROW_LIMIT" =~ ^[0-9]+$ ]]; then
+            echo "::error::row_offset/row_limit must be plain integers."
+            exit 1
+          fi
+          echo "===TABLE:${TABLE}:offset=${ROW_OFFSET}:limit=${ROW_LIMIT}==="
+          psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 --no-psqlrc -c \
+            "COPY (SELECT to_jsonb(t) FROM public.${TABLE} t ORDER BY t::text LIMIT ${ROW_LIMIT} OFFSET ${ROW_OFFSET}) TO STDOUT"
+          echo "===ENDTABLE:${TABLE}==="
