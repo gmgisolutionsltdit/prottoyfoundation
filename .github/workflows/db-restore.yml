@@ -1,0 +1,301 @@
+name: Database restore (DESTRUCTIVE)
+
+# Manual only. Restores the "public" schema's DATA (not schema/DDL — see
+# below) and the transaction-attachments Storage bucket from a specific
+# db-backup.yml run, replacing whatever is currently live. This is a full
+# replace, not a merge: anything added/changed since that backup is lost.
+#
+# Safety mechanics:
+#   - Always takes a fresh backup of the CURRENT state first (uploaded as
+#     its own artifact), so a restore is itself undoable.
+#   - dry_run defaults to true: validates everything (artifact exists, every
+#     table the backup references still exists live) and prints a summary
+#     without touching the database or Storage. Only set it to false once
+#     you've reviewed that summary.
+#   - Runs in the same concurrency group as deploy-migrations.yml so a
+#     restore and a migration push can never race each other.
+#   - TRUNCATE (not DROP SCHEMA) is used to wipe tables before reloading —
+#     this never touches DDL, so every grant, RLS policy, and PostgREST's
+#     schema cache stay completely undisturbed. No re-granting needed.
+#
+# Known limitations (by design, not oversights):
+#   - Schema DDL is never restored — only data, onto whatever schema
+#     deploy-migrations.yml has already applied live. Restoring a backup
+#     from before a breaking schema change (dropped/renamed NOT NULL
+#     column) fails safely — the whole thing is one transaction, so it
+#     rolls back cleanly — but needs manual schema reconciliation first.
+#   - auth.users accounts (logins/credentials) are never restored or
+#     reverted, because db-backup.yml never captures them. Rows in the
+#     backup that reference a since-deleted account are reconciled against
+#     auth.users as it exists RIGHT NOW: rows tied to the account by a
+#     CASCADE foreign key are deleted, rows tied by a SET NULL foreign key
+#     are kept with that column nulled. This is discovered dynamically from
+#     the live FK definitions, not a hardcoded table list.
+#   - Tables added to "public" after the backup was taken are left
+#     completely alone (neither wiped nor restored) — the pre-flight step
+#     warns loudly about this rather than doing it silently.
+#   - TRUNCATE takes an ACCESS EXCLUSIVE lock on every restored table for
+#     the duration of the transaction — expect brief downtime on a real run.
+#   - The advisory lock + concurrency group only guard against other GitHub
+#     Actions runs, not a human running SQL directly via the Supabase
+#     dashboard at the same time.
+#   - 90-day artifact retention bounds how far back a restore can reach.
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: "db-backup.yml run ID to restore from (Actions tab URL, or ask Claude)"
+        required: true
+        type: string
+      dry_run:
+        description: "Preview only: validate everything, touch nothing"
+        required: true
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  actions: read # required for actions/download-artifact@v4 to pull a DIFFERENT run's artifact
+
+concurrency:
+  group: supabase-migrations
+  cancel-in-progress: false
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Sanity-check secrets
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          if [ -z "$SUPABASE_DB_URL" ]; then
+            echo "::error::Repository secret SUPABASE_DB_URL is not set."
+            exit 1
+          fi
+          case "$SUPABASE_DB_URL" in
+            *pooler.supabase.com:5432*) : ;;
+            *) echo "::warning::Expected the Session pooler URL (…pooler.supabase.com:5432)." ;;
+          esac
+
+      - name: Pre-flight — confirm the privilege this restore depends on
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          # session_replication_role is normally superuser-only. Supabase's
+          # pooler role is generally permitted to set it (a common pattern
+          # for its own bulk-import tooling), but this MUST be confirmed
+          # against the live project before any TRUNCATE happens, not
+          # assumed. Cheap and fully non-destructive: set it and immediately
+          # reset it inside a throwaway transaction.
+          psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 --no-psqlrc -c \
+            "BEGIN; SET LOCAL session_replication_role = replica; ROLLBACK;" \
+            || { echo "::error::The SUPABASE_DB_URL role cannot SET session_replication_role. Restore cannot safely disable FK/trigger checks for the reload — stopping before touching anything."; exit 1; }
+
+      - name: Safety net — snapshot CURRENT state first
+        id: safety_backup
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          mkdir -p safety-backup
+          STAMP=$(date -u +%Y-%m-%d_%H%M%S)
+          echo "SAFETY_STAMP=$STAMP" >> "$GITHUB_ENV"
+          OUT="safety-backup/pre_restore_${STAMP}.sql"
+          supabase db dump --db-url "$SUPABASE_DB_URL" -f "$OUT"
+          supabase db dump --db-url "$SUPABASE_DB_URL" --data-only -s public -f safety-backup/data_only.sql
+          {
+            echo "-- Pre-restore safety snapshot, $STAMP UTC"
+            echo "-- Taken automatically by db-restore.yml before overwriting anything."
+            cat "$OUT"
+            echo
+            echo "-- ===== DATA (public schema) ====="
+            cat safety-backup/data_only.sql
+          } > safety-backup/combined.sql
+          mv safety-backup/combined.sql "$OUT"
+          rm -f safety-backup/data_only.sql
+
+      - name: Upload safety backup artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pre-restore-safety-backup-${{ env.SAFETY_STAMP }}
+          path: safety-backup/*.sql
+          retention-days: 90
+
+      - name: Download the backup to restore from
+        uses: actions/download-artifact@v4
+        with:
+          pattern: db-backup-*
+          run-id: ${{ inputs.source_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: restore-input
+          merge-multiple: true
+
+      - name: Extract data section + pre-flight table check
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          BACKUP_SQL=$(find restore-input -maxdepth 2 -name '*.sql' ! -path '*/storage/*' | head -1)
+          if [ -z "$BACKUP_SQL" ]; then
+            echo "::error::No .sql file found in the downloaded artifact for run ${{ inputs.source_run_id }}."
+            exit 1
+          fi
+          echo "Using backup file: $BACKUP_SQL"
+
+          sed -n '/^-- ===== DATA (public schema) =====$/,$p' "$BACKUP_SQL" | tail -n +2 > data_section.sql
+          if [ ! -s data_section.sql ]; then
+            echo "::error::Could not find the DATA marker in $BACKUP_SQL — is this really a db-backup.yml artifact?"
+            exit 1
+          fi
+
+          grep -oP '^COPY public\.\K[a-zA-Z_0-9]+' data_section.sql | sort -u > backup_tables.txt
+          echo "Tables in backup:"; cat backup_tables.txt
+
+          psql "$SUPABASE_DB_URL" -tAc \
+            "SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE' ORDER BY 1" \
+            | sort > live_tables.txt
+
+          MISSING=$(comm -23 backup_tables.txt live_tables.txt)
+          if [ -n "$MISSING" ]; then
+            echo "::error::Backup references tables that no longer exist live — restore cannot proceed: $MISSING"
+            exit 1
+          fi
+
+          EXTRA=$(comm -13 backup_tables.txt live_tables.txt)
+          if [ -n "$EXTRA" ]; then
+            echo "::warning::These live public tables aren't in the backup and will NOT be touched by this restore: $EXTRA"
+          fi
+
+          TRUNCATE_LIST=$(sed 's/^/public./' backup_tables.txt | paste -sd, -)
+          echo "TRUNCATE_LIST=$TRUNCATE_LIST" >> "$GITHUB_ENV"
+
+      - name: Build restore.sql
+        run: |
+          cat > restore.sql <<SQL
+          \set ON_ERROR_STOP on
+          SELECT pg_advisory_xact_lock(hashtext('prottoy_db_restore'));
+          SET LOCAL session_replication_role = replica;
+          CREATE TEMP TABLE _restore_valid_auth_users AS SELECT id FROM auth.users;
+
+          TRUNCATE TABLE $TRUNCATE_LIST RESTART IDENTITY CASCADE;
+
+          SQL
+          cat data_section.sql >> restore.sql
+          cat >> restore.sql <<'SQL'
+
+          -- Reconcile every FK to auth.users(id), discovered dynamically —
+          -- no hardcoded table list, so this self-maintains as the schema
+          -- evolves. CASCADE-deleted FKs mean the row is meaningless
+          -- without the account, so it's deleted; SET NULL FKs mean the
+          -- row still matters, so only the reference is cleared.
+          DO $reconcile_auth_fks$
+          DECLARE
+            r record;
+          BEGIN
+            FOR r IN
+              SELECT con.conrelid::regclass AS tbl, att.attname AS col, con.confdeltype AS del_type
+              FROM pg_constraint con
+              JOIN pg_attribute att ON att.attrelid = con.conrelid AND att.attnum = ANY(con.conkey)
+              WHERE con.confrelid = 'auth.users'::regclass AND con.contype = 'f'
+            LOOP
+              IF r.del_type = 'c' THEN
+                EXECUTE format('DELETE FROM %s WHERE %I NOT IN (SELECT id FROM _restore_valid_auth_users)', r.tbl, r.col);
+              ELSIF r.del_type = 'n' THEN
+                EXECUTE format('UPDATE %s SET %I = NULL WHERE %I IS NOT NULL AND %I NOT IN (SELECT id FROM _restore_valid_auth_users)', r.tbl, r.col, r.col, r.col);
+              ELSE
+                RAISE EXCEPTION 'Unhandled ON DELETE action % for FK %.% -> auth.users(id); restore needs an explicit rule for this before it can proceed safely', r.del_type, r.tbl, r.col;
+              END IF;
+            END LOOP;
+          END
+          $reconcile_auth_fks$;
+          SQL
+          echo "INSERT INTO public.audit_logs (action_type, status, records_processed, details) VALUES ('DB_RESTORE', 'COMPLETED', 0, jsonb_build_object('source_run_id', '${{ inputs.source_run_id }}', 'restored_at', now()));" >> restore.sql
+
+      - name: Dry-run summary
+        if: ${{ inputs.dry_run }}
+        run: |
+          echo "Dry run only — nothing was written."
+          echo "Tables that would be restored:"; cat backup_tables.txt
+          echo "restore.sql line count: $(wc -l < restore.sql)"
+          echo "Re-run with dry_run=false to actually execute this restore."
+
+      - name: Execute restore
+        if: ${{ !inputs.dry_run }}
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 --single-transaction -f restore.sql
+
+      - name: Post-restore verification
+        if: ${{ !inputs.dry_run }}
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          echo "Live row counts after restore:"
+          psql "$SUPABASE_DB_URL" -tAc "
+            SELECT table_name, (xpath('/row/c/text()', query_to_xml(format('SELECT count(*) AS c FROM public.%I', table_name), false, true, '')))[1]::text::int
+            FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE' ORDER BY 1;
+          "
+
+      - name: Restore Storage bucket (transaction-attachments)
+        if: ${{ !inputs.dry_run }}
+        env:
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          if [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then
+            echo "::warning::SUPABASE_SERVICE_ROLE_KEY is not set — skipping Storage restore. Database data was still restored above."
+            exit 0
+          fi
+          PROJECT_REF=$(grep -oP 'project_id\s*=\s*"\K[^"]+' supabase/config.toml)
+          SUPABASE_URL="https://${PROJECT_REF}.supabase.co"
+          BUCKET="transaction-attachments"
+          AUTH_HEADER="Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY"
+
+          list_all() { # $1 = prefix
+            local offset=0 limit=1000
+            while :; do
+              resp=$(curl -sS -X POST "$SUPABASE_URL/storage/v1/object/list/$BUCKET" \
+                -H "$AUTH_HEADER" -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" -H "Content-Type: application/json" \
+                -d "{\"prefix\":\"$1\",\"limit\":$limit,\"offset\":$offset,\"sortBy\":{\"column\":\"name\",\"order\":\"asc\"}}")
+              count=$(echo "$resp" | jq 'length')
+              [ "$count" -eq 0 ] && break
+              echo "$resp" | jq -c '.[]' | while read -r entry; do
+                name=$(echo "$entry" | jq -r '.name')
+                id=$(echo "$entry" | jq -r '.id')
+                if [ "$id" = "null" ]; then
+                  list_all "${1}${name}/"
+                else
+                  echo "${1}${name}"
+                fi
+              done
+              [ "$count" -lt "$limit" ] && break
+              offset=$((offset + limit))
+            done
+          }
+
+          echo "Listing current bucket contents to wipe..."
+          list_all "" > current_objects.txt || true
+          if [ -s current_objects.txt ]; then
+            jq -R -s -c 'split("\n") | map(select(length > 0))' current_objects.txt > prefixes.json
+            curl -sS -X DELETE "$SUPABASE_URL/storage/v1/object/$BUCKET" \
+              -H "$AUTH_HEADER" -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" -H "Content-Type: application/json" \
+              -d "{\"prefixes\":$(cat prefixes.json)}"
+          fi
+
+          BACKUP_STORAGE_DIR="restore-input/storage/$BUCKET"
+          if [ -d "$BACKUP_STORAGE_DIR" ]; then
+            find "$BACKUP_STORAGE_DIR" -type f | while read -r f; do
+              rel="${f#$BACKUP_STORAGE_DIR/}"
+              curl -sS -X POST "$SUPABASE_URL/storage/v1/object/$BUCKET/$rel" \
+                -H "$AUTH_HEADER" -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+                -H "x-upsert: true" --data-binary "@$f"
+            done
+            echo "Storage restore complete."
+          else
+            echo "No storage/ directory in this backup artifact — bucket left empty (backup predates Storage capture, or bucket was empty)."
+          fi

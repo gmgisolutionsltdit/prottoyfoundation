@@ -2,13 +2,18 @@ name: Database backup
 
 # Manual only — run this before/after anything risky, or whenever you want a
 # recoverable snapshot. Downloads as a workflow artifact (see the run's
-# "Artifacts" section), kept for 90 days.
+# "Artifacts" section), kept for 90 days. Captures the database (schema +
+# public-schema data) AND the transaction-attachments Storage bucket, so one
+# run is one restorable snapshot of everything.
 #
-# To restore: download the .sql artifact, then either
-#   psql "$SUPABASE_DB_URL" -f backup.sql
-# or paste it into the Supabase dashboard's SQL Editor.
-# Restoring onto a database that already has data will conflict — this is
-# a snapshot for disaster recovery / rollback, not a routine replay.
+# To restore: use db-restore.yml (workflow_dispatch, pass this run's ID as
+# source_run_id). Do not hand-apply the .sql file with psql — restoring onto
+# a database that already has data will conflict on unique keys; db-restore
+# handles that (TRUNCATE + reload + FK reconciliation) safely.
+#
+# Storage backup requires the repo secret SUPABASE_SERVICE_ROLE_KEY (Supabase
+# Dashboard → Project Settings → API → service_role key). If it's not set,
+# the storage step is skipped with a warning and the DB backup still runs.
 
 on:
   workflow_dispatch: {}
@@ -17,6 +22,8 @@ jobs:
   backup:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+
       - uses: supabase/setup-cli@v1
         with:
           version: latest
@@ -56,9 +63,63 @@ jobs:
           rm -f backup/data_only.sql
           ls -lh backup/
 
+      - name: Back up Storage bucket (transaction-attachments)
+        env:
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          if [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then
+            echo "::warning::SUPABASE_SERVICE_ROLE_KEY is not set — skipping Storage backup. Database backup above is still complete."
+            exit 0
+          fi
+          PROJECT_REF=$(grep -oP 'project_id\s*=\s*"\K[^"]+' supabase/config.toml)
+          SUPABASE_URL="https://${PROJECT_REF}.supabase.co"
+          BUCKET="transaction-attachments"
+          AUTH_HEADER="Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY"
+          DEST="backup/storage/$BUCKET"
+          mkdir -p "$DEST"
+
+          list_all() { # $1 = prefix
+            local offset=0 limit=1000
+            while :; do
+              resp=$(curl -sS -X POST "$SUPABASE_URL/storage/v1/object/list/$BUCKET" \
+                -H "$AUTH_HEADER" -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" -H "Content-Type: application/json" \
+                -d "{\"prefix\":\"$1\",\"limit\":$limit,\"offset\":$offset,\"sortBy\":{\"column\":\"name\",\"order\":\"asc\"}}")
+              count=$(echo "$resp" | jq 'length')
+              [ "$count" -eq 0 ] && break
+              echo "$resp" | jq -c '.[]' | while read -r entry; do
+                name=$(echo "$entry" | jq -r '.name')
+                id=$(echo "$entry" | jq -r '.id')
+                if [ "$id" = "null" ]; then
+                  list_all "${1}${name}/"
+                else
+                  echo "${1}${name}"
+                fi
+              done
+              [ "$count" -lt "$limit" ] && break
+              offset=$((offset + limit))
+            done
+          }
+
+          list_all "" > backup/storage_objects.txt || true
+          if [ -s backup/storage_objects.txt ]; then
+            while read -r path; do
+              mkdir -p "$DEST/$(dirname "$path")"
+              curl -sS "$SUPABASE_URL/storage/v1/object/$BUCKET/$path" \
+                -H "$AUTH_HEADER" -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+                -o "$DEST/$path"
+            done < backup/storage_objects.txt
+            echo "Downloaded $(wc -l < backup/storage_objects.txt) storage object(s)."
+          else
+            echo "Bucket is empty — nothing to back up."
+          fi
+          rm -f backup/storage_objects.txt
+
       - name: Upload backup artifact
         uses: actions/upload-artifact@v4
         with:
           name: db-backup-${{ env.STAMP }}
-          path: backup/*.sql
+          path: |
+            backup/*.sql
+            backup/storage/**
           retention-days: 90
+          if-no-files-found: ignore
