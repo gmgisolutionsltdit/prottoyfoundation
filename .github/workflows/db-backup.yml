@@ -1,0 +1,43 @@
+name: Database backup
+
+# Manual only — run this before/after anything risky, or whenever you want a
+# recoverable snapshot. Downloads as a workflow artifact (see the run's
+# "Artifacts" section), kept for 90 days.
+#
+# To restore: download the .sql artifact, then either
+#   psql "$SUPABASE_DB_URL" -f backup.sql
+# or paste it into the Supabase dashboard's SQL Editor.
+# Restoring onto a database that already has data will conflict — this is
+# a snapshot for disaster recovery / rollback, not a routine replay.
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Dump database (schema + data)
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          if [ -z "$SUPABASE_DB_URL" ]; then
+            echo "::error::Repository secret SUPABASE_DB_URL is not set."
+            exit 1
+          fi
+          mkdir -p backup
+          STAMP=$(date -u +%Y-%m-%d_%H%M%S)
+          echo "STAMP=$STAMP" >> "$GITHUB_ENV"
+          supabase db dump --db-url "$SUPABASE_DB_URL" -f "backup/prottoy_backup_${STAMP}.sql"
+          ls -lh backup/
+
+      - name: Upload backup artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: db-backup-${{ env.STAMP }}
+          path: backup/*.sql
+          retention-days: 90
