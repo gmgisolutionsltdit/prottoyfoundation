@@ -1,0 +1,35 @@
+name: Export data (JSON dump for Excel backup)
+
+# Manual only. Read-only, no writes, no artifact upload — Claude reads the
+# job log directly (this environment can reach the GitHub Actions API but
+# not GitHub's blob-storage artifact URLs), parses it, and builds an Excel
+# workbook with one sheet per table for the user to keep as a human-usable
+# backup of the live business data.
+#
+# Dumps every row of each listed table as one JSON object per line via
+# `to_jsonb(t)`, which is schema-agnostic (works no matter what columns a
+# table has, so this file doesn't need updating when columns change) and
+# keeps each row on exactly one physical log line — Postgres's COPY TEXT
+# format backslash-escapes embedded newlines/tabs, so multi-line text
+# fields (addresses, notes, etc.) can't break the line-per-row structure.
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dump tables as JSON lines
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          if [ -z "$SUPABASE_DB_URL" ]; then
+            echo "::error::Repository secret SUPABASE_DB_URL is not set."
+            exit 1
+          fi
+          for t in members member_types member_member_types funds member_fund_subscriptions transactions expenses receipts blood_donors meetings meeting_agenda_items meeting_attendance meeting_next_agenda_items; do
+            echo "===TABLE:${t}==="
+            psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 --no-psqlrc -c "COPY (SELECT to_jsonb(t) FROM public.${t} t) TO STDOUT"
+            echo "===ENDTABLE:${t}==="
+          done
