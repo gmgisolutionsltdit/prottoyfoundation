@@ -1,5 +1,12 @@
 name: DB diagnostics (read-only)
 
+# Manual only. Runs a fixed set of read-only SELECTs against the database and
+# prints them to the run log, so data questions can be answered without giving
+# anyone a direct connection. No inputs, no writes.
+#
+# Edit the SQL below before dispatching when you need a specific check; it's
+# meant to be a scratch tool, not a stable report.
+
 on:
   workflow_dispatch: {}
 
@@ -17,13 +24,13 @@ jobs:
           fi
 
           psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 --no-psqlrc <<'SQL'
-          \echo '=== does public.meetings exist? ==='
-          SELECT EXISTS (
-            SELECT 1 FROM information_schema.tables
-            WHERE table_schema='public' AND table_name='meetings'
-          ) AS meetings_table_exists;
+          \echo '=== headline counts ==='
+          SELECT (SELECT count(*) FROM public.members)      AS members,
+                 (SELECT count(*) FROM public.transactions) AS all_txns;
 
-          \echo '=== any meeting-prefixed tables at all? ==='
-          SELECT table_name FROM information_schema.tables
-          WHERE table_schema='public' AND table_name LIKE 'meeting%';
+          \echo '=== transactions per fund ==='
+          SELECT f.code, count(*) AS txns, sum(t.amount) AS total
+          FROM public.transactions t
+          JOIN public.funds f ON f.id = t.fund_id
+          GROUP BY f.code ORDER BY f.code;
           SQL

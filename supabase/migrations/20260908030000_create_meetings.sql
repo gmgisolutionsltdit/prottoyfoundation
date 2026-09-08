@@ -64,7 +64,7 @@ ALTER TABLE public.meeting_agenda_items         ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.meeting_next_agenda_items    ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.meeting_attendance           ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Admins manage meetings"                  ON public.meetings                  FOR ALL TO authenticated USING (public.has_role(auth.uid(), 'admin'::public.app_role)) WITH CHECK (public.has_role(auth.uid(), 'admin'::public.app_role));
-CREATE POLICY "Admins manage meeting_agenda_items"      ON public.meeting_agenda_items      FOR ALL TO authenticated USING (public.has_role(auth.uid(), 'admin'::public.app_role)) WITH CHECK (public.has_role(auth.uid(), 'admin'::public.app_role));
-CREATE POLICY "Admins manage meeting_next_agenda_items" ON public.meeting_next_agenda_items FOR ALL TO authenticated USING (public.has_role(auth.uid(), 'admin'::public.app_role)) WITH CHECK (public.has_role(auth.uid(), 'admin'::public.app_role));
-CREATE POLICY "Admins manage meeting_attendance"        ON public.meeting_attendance        FOR ALL TO authenticated USING (public.has_role(auth.uid(), 'admin'::public.app_role)) WITH CHECK (public.has_role(auth.uid(), 'admin'::public.app_role));
+CREATE POLICY "Admins manage meetings"                  ON public.meetings                  FOR ALL TO authenticated USING (private.has_role(auth.uid(), 'admin'::public.app_role)) WITH CHECK (private.has_role(auth.uid(), 'admin'::public.app_role));
+CREATE POLICY "Admins manage meeting_agenda_items"      ON public.meeting_agenda_items      FOR ALL TO authenticated USING (private.has_role(auth.uid(), 'admin'::public.app_role)) WITH CHECK (private.has_role(auth.uid(), 'admin'::public.app_role));
+CREATE POLICY "Admins manage meeting_next_agenda_items" ON public.meeting_next_agenda_items FOR ALL TO authenticated USING (private.has_role(auth.uid(), 'admin'::public.app_role)) WITH CHECK (private.has_role(auth.uid(), 'admin'::public.app_role));
+CREATE POLICY "Admins manage meeting_attendance"        ON public.meeting_attendance        FOR ALL TO authenticated USING (private.has_role(auth.uid(), 'admin'::public.app_role)) WITH CHECK (private.has_role(auth.uid(), 'admin'::public.app_role));
