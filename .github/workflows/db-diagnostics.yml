@@ -17,6 +17,13 @@ jobs:
           fi
 
           psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 --no-psqlrc <<'SQL'
-          \echo '=== first 20 members, for name-matching a meeting attendance import ==='
-          SELECT member_no, full_name FROM public.members ORDER BY member_no LIMIT 20;
+          \echo '=== does public.meetings exist? ==='
+          SELECT EXISTS (
+            SELECT 1 FROM information_schema.tables
+            WHERE table_schema='public' AND table_name='meetings'
+          ) AS meetings_table_exists;
+
+          \echo '=== any meeting-prefixed tables at all? ==='
+          SELECT table_name FROM information_schema.tables
+          WHERE table_schema='public' AND table_name LIKE 'meeting%';
           SQL
