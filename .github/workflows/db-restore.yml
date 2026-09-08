@@ -154,8 +154,14 @@ jobs:
             exit 1
           fi
 
-          echo "DEBUG head of data_section.sql:"; head -c 2000 data_section.sql | cat -A | head -40
-          grep -oP '^COPY public\.\K[a-zA-Z_0-9]+' data_section.sql | sort -u > backup_tables.txt
+          # `supabase db dump --data-only` emits INSERT statements (not
+          # COPY, unlike raw pg_dump), and skips the INSERT entirely for a
+          # table with zero rows. The one thing present for every table
+          # regardless of format or row count is pg_dump's own per-table
+          # header comment, so that's the reliable source of truth for
+          # "which tables does this backup cover":
+          #   -- Data for Name: <table>; Type: TABLE DATA; Schema: public; Owner: ...
+          grep -oP '^-- Data for Name: \K[a-zA-Z_0-9]+(?=; Type: TABLE DATA; Schema: public;)' data_section.sql | sort -u > backup_tables.txt
           echo "Tables in backup:"; cat backup_tables.txt
 
           psql "$SUPABASE_DB_URL" -tAc \
