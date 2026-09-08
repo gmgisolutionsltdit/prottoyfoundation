@@ -1,6 +1,19 @@
 // Excel export — rebuilds the "Reg and Monthly" sheet layout from live data.
 import * as XLSX from "xlsx";
-import { ymToHeader } from "./excelSheet";
+
+export const SHEET_NAME = "Reg and Monthly";
+
+const MONTHS = [
+  "january", "february", "march", "april", "may", "june",
+  "july", "august", "september", "october", "november", "december",
+];
+
+/** "YYYY-MM" -> Excel header label ("August_2024"). */
+export function ymToHeader(ym: string): string {
+  const [y, mo] = ym.split("-");
+  const name = MONTHS[Number(mo) - 1];
+  return `${name.charAt(0).toUpperCase()}${name.slice(1)}_${y}`;
+}
 
 export type ExportMember = {
   member_no: number;
@@ -91,7 +104,7 @@ export function buildRegAndMonthlyWorkbook(members: ExportMember[], months: stri
   }
 
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Reg and Monthly");
+  XLSX.utils.book_append_sheet(wb, ws, SHEET_NAME);
   return wb;
 }
 
