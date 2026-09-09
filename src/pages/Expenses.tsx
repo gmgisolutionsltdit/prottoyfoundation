@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useDirtyForm, guardedOpenChange } from "@/hooks/useDirtyForm";
+import { useUrlParam, useUrlNumberParam } from "@/hooks/useUrlParam";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
@@ -69,12 +70,12 @@ export default function Expenses() {
   const [rows, setRows] = useState<Row[]>([]);
   const [funds, setFunds] = useState<Fund[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [fundFilter, setFundFilter] = useState<string>("all");
+  const [search, setSearch] = useUrlParam("q", "");
+  const [fundFilter, setFundFilter] = useUrlParam("fund", "all");
   // Section 6.1 — From/To date-range filter.
-  const [fromDate, setFromDate] = useState<string>("");
-  const [toDate, setToDate] = useState<string>("");
-  const [page, setPage] = useState(1);
+  const [fromDate, setFromDate] = useUrlParam("from", "");
+  const [toDate, setToDate] = useUrlParam("to", "");
+  const [page, setPage] = useUrlNumberParam("page", 1);
   const [pageSize, setPageSize] = useState(25);
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -141,7 +142,7 @@ export default function Expenses() {
 
   useEffect(() => {
     setPage(1);
-  }, [search, fundFilter, fromDate, toDate, pageSize]);
+  }, [search, fundFilter, fromDate, toDate, pageSize, setPage]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const currentPage = Math.min(page, totalPages);

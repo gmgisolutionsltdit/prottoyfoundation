@@ -16,6 +16,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { TablePagination } from "@/components/TablePagination";
 import { TableSkeletonRows } from "@/components/TableSkeleton";
 import { EmptyStateRow } from "@/components/EmptyState";
+import { useUrlParam, useUrlNumberParam } from "@/hooks/useUrlParam";
 import { formatBDT } from "@/lib/format";
 import { toast } from "@/hooks/use-toast";
 import { safeErrorMessage } from "@/lib/errors";
@@ -34,14 +35,27 @@ export default function Dues() {
 
   const today = new Date();
   const defaultEnd = dateToYm(today);
-  const [memberFilter, setMemberFilter] = useState<string>(ALL);
+  const [memberFilter, setMemberFilter] = useUrlParam("member", ALL);
   // Section 2.1 — multi-select fund filter; empty set means "all funds".
-  const [fundFilters, setFundFilters] = useState<Set<string>>(new Set());
-  const [endMonth, setEndMonth] = useState<string>(defaultEnd);
+  // Stored in the URL as a comma-joined list of fund ids.
+  const [fundFiltersRaw, setFundFiltersRaw] = useUrlParam("funds", "");
+  const fundFilters = useMemo(
+    () => new Set(fundFiltersRaw ? fundFiltersRaw.split(",") : []),
+    [fundFiltersRaw]
+  );
+  const setFundFilters = (next: Set<string> | ((prev: Set<string>) => Set<string>)) => {
+    const resolved = typeof next === "function" ? next(fundFilters) : next;
+    setFundFiltersRaw([...resolved].join(","));
+  };
+  const [endMonth, setEndMonth] = useUrlParam("upto", defaultEnd);
   // Section 2.2 — sorting.
-  const [sortBy, setSortBy] = useState<"member" | "memberNo" | "amount" | "date" | "status" | "fund">("member");
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
-  const [page, setPage] = useState(1);
+  const [sortByRaw, setSortBy] = useUrlParam("sort", "member");
+  const sortBy = (["member", "memberNo", "amount", "date", "status", "fund"] as const).includes(sortByRaw as "member")
+    ? (sortByRaw as "member" | "memberNo" | "amount" | "date" | "status" | "fund")
+    : "member";
+  const [sortDirRaw, setSortDir] = useUrlParam("dir", "asc");
+  const sortDir = sortDirRaw === "desc" ? "desc" : "asc";
+  const [page, setPage] = useUrlNumberParam("page", 1);
   const [pageSize, setPageSize] = useState(10);
 
   useEffect(() => {
@@ -91,7 +105,7 @@ export default function Dues() {
 
   useEffect(() => {
     setPage(1);
-  }, [memberFilter, fundFilters, endMonth, sortBy, sortDir, pageSize]);
+  }, [memberFilter, fundFilters, endMonth, sortBy, sortDir, pageSize, setPage]);
 
   const pageMemberIds = useMemo(() => {
     const seen = new Set<string>();

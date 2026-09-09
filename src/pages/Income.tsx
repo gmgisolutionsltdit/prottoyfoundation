@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useDirtyForm, guardedOpenChange } from "@/hooks/useDirtyForm";
+import { useUrlParam, useUrlNumberParam } from "@/hooks/useUrlParam";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
@@ -101,16 +102,22 @@ export default function Income() {
   const [funds, setFunds] = useState<Fund[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [fundFilter, setFundFilter] = useState<string>("all");
-  const [memberFilter, setMemberFilter] = useState<string>("all");
-  const [monthFilter, setMonthFilter] = useState<string>("");
+  // Filters live in the URL so a filtered view survives navigating away and
+  // back, and can be bookmarked/shared (item 11 of the UI/UX list).
+  const [search, setSearch] = useUrlParam("q", "");
+  const [fundFilter, setFundFilter] = useUrlParam("fund", "all");
+  const [memberFilter, setMemberFilter] = useUrlParam("member", "all");
+  const [monthFilter, setMonthFilter] = useUrlParam("month", "");
   // Section 6.1 — From/To date-range filter (independent of the single Target Month filter above).
-  const [fromDate, setFromDate] = useState<string>("");
-  const [toDate, setToDate] = useState<string>("");
-  const [sortBy, setSortBy] = useState<"date" | "amount" | "member" | "for_month">("date");
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
-  const [page, setPage] = useState(1);
+  const [fromDate, setFromDate] = useUrlParam("from", "");
+  const [toDate, setToDate] = useUrlParam("to", "");
+  const [sortByRaw, setSortBy] = useUrlParam("sort", "date");
+  const sortBy = (["date", "amount", "member", "for_month"] as const).includes(sortByRaw as "date")
+    ? (sortByRaw as "date" | "amount" | "member" | "for_month")
+    : "date";
+  const [sortDirRaw, setSortDir] = useUrlParam("dir", "desc");
+  const sortDir = sortDirRaw === "asc" ? "asc" : "desc";
+  const [page, setPage] = useUrlNumberParam("page", 1);
   const [pageSize, setPageSize] = useState(25);
 
 
@@ -213,7 +220,7 @@ export default function Income() {
 
   useEffect(() => {
     setPage(1);
-  }, [search, fundFilter, memberFilter, monthFilter, fromDate, toDate, sortBy, sortDir, pageSize]);
+  }, [search, fundFilter, memberFilter, monthFilter, fromDate, toDate, sortBy, sortDir, pageSize, setPage]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const currentPage = Math.min(page, totalPages);

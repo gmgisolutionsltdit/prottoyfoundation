@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useDirtyForm, guardedOpenChange } from "@/hooks/useDirtyForm";
+import { useUrlParam, useUrlNumberParam } from "@/hooks/useUrlParam";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
@@ -96,10 +97,13 @@ export default function Members() {
   const [members, setMembers] = useState<Member[]>([]);
   const [types, setTypes] = useState<MemberType[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [typeFilter, setTypeFilter] = useState<string>("all");
-  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("active");
-  const [page, setPage] = useState(1);
+  const [search, setSearch] = useUrlParam("q", "");
+  const [typeFilter, setTypeFilter] = useUrlParam("type", "all");
+  const [statusFilterRaw, setStatusFilter] = useUrlParam("status", "active");
+  const statusFilter = (["all", "active", "inactive"] as const).includes(statusFilterRaw as "all")
+    ? (statusFilterRaw as "all" | "active" | "inactive")
+    : "active";
+  const [page, setPage] = useUrlNumberParam("page", 1);
   const [pageSize, setPageSize] = useState(25);
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -190,7 +194,7 @@ export default function Members() {
 
   useEffect(() => {
     setPage(1);
-  }, [search, typeFilter, statusFilter, pageSize]);
+  }, [search, typeFilter, statusFilter, pageSize, setPage]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const currentPage = Math.min(page, totalPages);

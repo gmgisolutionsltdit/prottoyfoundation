@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useDirtyForm, guardedOpenChange } from "@/hooks/useDirtyForm";
+import { useUrlNumberParam } from "@/hooks/useUrlParam";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
@@ -78,7 +79,7 @@ export default function Meetings() {
   const [members, setMembers] = useState<Member[]>([]);
   const [details, setDetails] = useState<Map<string, MeetingDetail>>(new Map());
   const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useUrlNumberParam("page", 1);
   const PAGE_SIZE = 10;
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -134,7 +135,7 @@ export default function Meetings() {
 
   useEffect(() => {
     setPage(1);
-  }, [meetings.length]);
+  }, [meetings.length, setPage]);
 
   const totalPages = Math.max(1, Math.ceil(meetings.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);

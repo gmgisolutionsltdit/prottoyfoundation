@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useDirtyForm, guardedOpenChange } from "@/hooks/useDirtyForm";
+import { useUrlParam } from "@/hooks/useUrlParam";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
@@ -70,8 +71,8 @@ export default function BloodDonors() {
   const { isViewer } = useAuth();
   const [donors, setDonors] = useState<Donor[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [bgFilter, setBgFilter] = useState<string>("all");
+  const [search, setSearch] = useUrlParam("q", "");
+  const [bgFilter, setBgFilter] = useUrlParam("bg", "all");
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Donor | null>(null);

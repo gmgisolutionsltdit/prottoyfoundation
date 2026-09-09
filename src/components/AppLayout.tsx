@@ -1,40 +1,13 @@
-import { ReactNode, useState } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import {
-  LayoutDashboard,
-  Users,
-  Wallet,
-  ArrowDownCircle,
-  ArrowUpCircle,
-  LogOut,
-  Tags,
-  Receipt,
-  ShieldCheck,
-  Droplet,
-  FileSpreadsheet,
-  Menu,
-  CalendarClock,
-  PanelLeftClose,
-  PanelLeftOpen,
-} from "lucide-react";
+import { LogOut, ShieldCheck, Menu, PanelLeftClose, PanelLeftOpen, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-const navItems = [
-  { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
-  { to: "/members", label: "Members", icon: Users },
-  { to: "/member-types", label: "Member Types", icon: Tags },
-  { to: "/funds", label: "Funds", icon: Wallet },
-  { to: "/income", label: "Income", icon: ArrowDownCircle },
-  { to: "/expenses", label: "Expenses", icon: ArrowUpCircle },
-  { to: "/dues", label: "Dues", icon: Receipt },
-  { to: "/meetings", label: "Meetings", icon: CalendarClock },
-  { to: "/export", label: "Export", icon: FileSpreadsheet },
-  { to: "/blood-donors", label: "Blood Donors", icon: Droplet },
-];
+import { CommandPalette } from "@/components/CommandPalette";
+import { navItems } from "@/lib/navItems";
 
 const SIDEBAR_COLLAPSED_KEY = "pf-sidebar-collapsed";
 
@@ -86,6 +59,18 @@ export function AppLayout({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        setPaletteOpen((o) => !o);
+      }
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, []);
   // Each page renders its own AppLayout, so navigating remounts this component
   // — the collapsed choice has to be persisted to survive a page change.
   const [desktopCollapsed, setDesktopCollapsed] = useState(() => {
@@ -160,6 +145,18 @@ export function AppLayout({ children }: { children: ReactNode }) {
               <h1 className="font-semibold">Prottoy Foundation</h1>
             </>
           )}
+          <Button
+            variant="outline"
+            size="sm"
+            className="ml-auto gap-2 text-muted-foreground"
+            onClick={() => setPaletteOpen(true)}
+          >
+            <Search className="h-4 w-4" />
+            Search
+            <kbd className="pointer-events-none ml-2 hidden select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium lg:inline-flex">
+              ⌘K
+            </kbd>
+          </Button>
         </div>
 
         <div className="md:hidden flex items-center justify-between border-b bg-card p-3">
@@ -182,10 +179,16 @@ export function AppLayout({ children }: { children: ReactNode }) {
             <img src="/logo.png" alt="Prottoy Foundation" className="h-7 w-7 rounded-full" />
             <h1 className="font-semibold">Prottoy Foundation</h1>
           </div>
-          <Button variant="ghost" size="sm" onClick={handleSignOut} aria-label="Sign out">
-            <LogOut className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button variant="ghost" size="icon" onClick={() => setPaletteOpen(true)} aria-label="Search">
+              <Search className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="sm" onClick={handleSignOut} aria-label="Sign out">
+              <LogOut className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
+        <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
         <div key={location.pathname} className="p-6">{children}</div>
       </main>
     </div>
