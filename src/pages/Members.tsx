@@ -55,10 +55,11 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { Plus, Search, Pencil, Power, Wallet, Trash2, ChevronDown, Users, PlusCircle } from "lucide-react";
+import { Plus, Search, Pencil, Power, Wallet, Trash2, ChevronDown, Users, PlusCircle, FileDown } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import type { Database } from "@/integrations/supabase/types";
+import { type MemberExportRow, buildMembersSheet, buildWorkbook, downloadWorkbook } from "@/lib/dataExportSheets";
 import { MemberSubscriptionsDialog } from "@/components/MemberSubscriptionsDialog";
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
 import { safeErrorMessage } from "@/lib/errors";
@@ -121,6 +122,12 @@ export default function Members() {
   const [toggleTarget, setToggleTarget] = useState<Member | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Member | null>(null);
   const [subsTarget, setSubsTarget] = useState<Member | null>(null);
+
+  // Bulk selection (item 18) — selection is scoped to the current page, like
+  // the header checkbox's tri-state reflects only pageRows below.
+  const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
+  const [bulkDeactivateOpen, setBulkDeactivateOpen] = useState(false);
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   const [memberTypeIds, setMemberTypeIds] = useState<Map<string, Set<string>>>(new Map());
   const [selectedTypeIds, setSelectedTypeIds] = useState<Set<string>>(new Set());
@@ -305,6 +312,65 @@ export default function Members() {
     setToggleTarget(null);
   }
 
+  function toggleBulkOne(id: string) {
+    setBulkSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleBulkAllOnPage() {
+    const pageIds = pageRows.map((m) => m.id);
+    const allSelected = pageIds.length > 0 && pageIds.every((id) => bulkSelected.has(id));
+    setBulkSelected((prev) => {
+      const next = new Set(prev);
+      if (allSelected) pageIds.forEach((id) => next.delete(id));
+      else pageIds.forEach((id) => next.add(id));
+      return next;
+    });
+  }
+
+  async function confirmBulkDeactivate() {
+    setBulkBusy(true);
+    const { error } = await supabase
+      .from("members")
+      .update({ is_active: false })
+      .in("id", [...bulkSelected]);
+    setBulkBusy(false);
+    setBulkDeactivateOpen(false);
+    if (error) {
+      toast({ title: "Bulk action failed", description: safeErrorMessage(error), variant: "destructive" });
+      return;
+    }
+    toast({ title: `${bulkSelected.size} member(s) deactivated` });
+    setBulkSelected(new Set());
+    void fetchAll();
+  }
+
+  function exportSelected() {
+    const rows: MemberExportRow[] = filtered
+      .filter((m) => bulkSelected.has(m.id))
+      .map((m) => {
+        const subs = memberSubs.get(m.id) ?? [];
+        return {
+          member_no: m.member_no,
+          full_name: m.full_name,
+          email: m.email,
+          mobile: m.mobile,
+          types: [...(memberTypeIds.get(m.id) ?? [])].map((tid) => typeMap.get(tid) ?? "").join(", "),
+          reference_person: m.reference_person,
+          joining_date: m.joining_date,
+          fund_subscriptions: subs.map((s) => fundsMap.get(s.fund_id) ?? "").join(", "),
+          total_monthly: subs.filter((s) => !oneTimeFundIds.has(s.fund_id)).reduce((sum, s) => sum + s.monthly_amount, 0),
+          is_active: m.is_active,
+        };
+      });
+    const ws = buildMembersSheet(rows);
+    downloadWorkbook(buildWorkbook([{ key: "members", ws }]), `Members_selected_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    toast({ title: `Exported ${rows.length} member(s)` });
+  }
+
   async function confirmDelete() {
     if (!deleteTarget) return;
     const { count } = await supabase.from("transactions")
@@ -399,6 +465,23 @@ export default function Members() {
               </div>
             </div>
 
+            {!isViewer && bulkSelected.size > 0 && (
+              <div className="flex flex-wrap items-center gap-2 rounded-md border bg-muted/40 p-2">
+                <span className="text-sm font-medium">{bulkSelected.size} selected</span>
+                <div className="ml-auto flex flex-wrap gap-2">
+                  <Button variant="outline" size="sm" onClick={exportSelected}>
+                    <FileDown className="mr-2 h-4 w-4" /> Export selected
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => setBulkDeactivateOpen(true)}>
+                    <Power className="mr-2 h-4 w-4" /> Deactivate selected
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => setBulkSelected(new Set())}>
+                    Clear
+                  </Button>
+                </div>
+              </div>
+            )}
+
             {/* Mobile card view — 10 columns don't fit a phone width. */}
             <div className="space-y-2 md:hidden">
               {loading && Array.from({ length: 4 }).map((_, i) => (
@@ -419,9 +502,19 @@ export default function Members() {
               {pageRows.map((m) => (
                 <div key={m.id} className="rounded-md border p-3">
                   <div className="mb-2 flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <Link to={`/members/${m.id}`} className="truncate font-medium hover:underline">{m.full_name}</Link>
-                      <p className="text-xs text-muted-foreground">#{m.member_no} · {m.mobile ?? "No mobile"}</p>
+                    <div className="flex min-w-0 items-start gap-2">
+                      {!isViewer && (
+                        <Checkbox
+                          className="mt-1"
+                          checked={bulkSelected.has(m.id)}
+                          onCheckedChange={() => toggleBulkOne(m.id)}
+                          aria-label={`Select ${m.full_name}`}
+                        />
+                      )}
+                      <div className="min-w-0">
+                        <Link to={`/members/${m.id}`} className="truncate font-medium hover:underline">{m.full_name}</Link>
+                        <p className="text-xs text-muted-foreground">#{m.member_no} · {m.mobile ?? "No mobile"}</p>
+                      </div>
                     </div>
                     {m.is_active ? <Badge className="shrink-0">Active</Badge> : <Badge variant="outline" className="shrink-0">Inactive</Badge>}
                   </div>
@@ -451,6 +544,15 @@ export default function Members() {
               <Table>
                 <TableHeader className="sticky top-0 z-10 bg-card">
                   <TableRow>
+                    {!isViewer && (
+                      <TableHead className="w-10">
+                        <Checkbox
+                          checked={pageRows.length > 0 && pageRows.every((m) => bulkSelected.has(m.id))}
+                          onCheckedChange={toggleBulkAllOnPage}
+                          aria-label="Select all on this page"
+                        />
+                      </TableHead>
+                    )}
                     <TableHead className="w-20">No.</TableHead>
                     <TableHead>Name</TableHead>
                     <TableHead>Type</TableHead>
@@ -464,10 +566,10 @@ export default function Members() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {loading && <TableSkeletonRows columns={10} />}
+                  {loading && <TableSkeletonRows columns={isViewer ? 10 : 11} />}
                   {filtered.length === 0 && !loading && (
                     <EmptyStateRow
-                      colSpan={10}
+                      colSpan={isViewer ? 10 : 11}
                       icon={Users}
                       title="No members found"
                       description="Add your first member to get started."
@@ -477,6 +579,15 @@ export default function Members() {
                   )}
                   {pageRows.map((m) => (
                     <TableRow key={m.id}>
+                      {!isViewer && (
+                        <TableCell>
+                          <Checkbox
+                            checked={bulkSelected.has(m.id)}
+                            onCheckedChange={() => toggleBulkOne(m.id)}
+                            aria-label={`Select ${m.full_name}`}
+                          />
+                        </TableCell>
+                      )}
                       <TableCell className="font-mono">{m.member_no}</TableCell>
                       <TableCell>
                         <Link to={`/members/${m.id}`} className="font-medium hover:underline">{m.full_name}</Link>
@@ -710,6 +821,23 @@ export default function Members() {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={confirmToggle}>Confirm</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={bulkDeactivateOpen} onOpenChange={setBulkDeactivateOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Deactivate {bulkSelected.size} member(s)?</AlertDialogTitle>
+            <AlertDialogDescription>
+              They'll be marked inactive and hidden from default lists. This can be undone one at a time from the member's own row.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkBusy}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmBulkDeactivate} disabled={bulkBusy}>
+              {bulkBusy ? "Deactivating…" : "Confirm"}
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
