@@ -67,7 +67,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
               <CommandItem
                 key={m.id}
                 value={`${m.member_no} ${m.full_name}`}
-                onSelect={() => go(`/members?search=${encodeURIComponent(m.full_name)}`)}
+                onSelect={() => go(`/members/${m.id}`)}
               >
                 <User className="mr-2 h-4 w-4" />
                 <span className="truncate">{m.full_name}</span>

@@ -12,6 +12,7 @@ import AuthPage from "./pages/Auth";
 import SignupPage from "./pages/Signup";
 
 import Members from "./pages/Members";
+import MemberDetail from "./pages/MemberDetail";
 import Funds from "./pages/Funds";
 import Income from "./pages/Income";
 import Expenses from "./pages/Expenses";
@@ -44,6 +45,7 @@ const App = () => (
 
                 <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
                 <Route path="/members" element={<ProtectedRoute><Members /></ProtectedRoute>} />
+                <Route path="/members/:id" element={<ProtectedRoute><MemberDetail /></ProtectedRoute>} />
                 <Route path="/funds" element={<ProtectedRoute><Funds /></ProtectedRoute>} />
                 <Route path="/income" element={<ProtectedRoute><Income /></ProtectedRoute>} />
                 <Route path="/expenses" element={<ProtectedRoute><Expenses /></ProtectedRoute>} />

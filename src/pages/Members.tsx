@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { useDirtyForm, guardedOpenChange } from "@/hooks/useDirtyForm";
 import { useUrlParam, useUrlNumberParam } from "@/hooks/useUrlParam";
 import { z } from "zod";
@@ -54,7 +55,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { Plus, Search, Pencil, Power, Wallet, Trash2, ChevronDown, Users } from "lucide-react";
+import { Plus, Search, Pencil, Power, Wallet, Trash2, ChevronDown, Users, PlusCircle } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import type { Database } from "@/integrations/supabase/types";
@@ -419,7 +420,7 @@ export default function Members() {
                     <TableRow key={m.id}>
                       <TableCell className="font-mono">{m.member_no}</TableCell>
                       <TableCell>
-                        <div className="font-medium">{m.full_name}</div>
+                        <Link to={`/members/${m.id}`} className="font-medium hover:underline">{m.full_name}</Link>
                         {m.email && <div className="text-xs text-muted-foreground">{m.email}</div>}
                       </TableCell>
                       <TableCell>
@@ -453,6 +454,11 @@ export default function Members() {
                             <span className="text-xs text-muted-foreground">View only</span>
                           ) : (
                             <>
+                              <Button variant="ghost" size="icon" title="Record income for this member" asChild>
+                                <Link to={`/income?newFor=${m.id}`}>
+                                  <PlusCircle className="h-4 w-4" />
+                                </Link>
+                              </Button>
                               <Button variant="ghost" size="icon" title="Fund subscriptions" onClick={() => setSubsTarget(m)}>
                                 <Wallet className="h-4 w-4" />
                               </Button>

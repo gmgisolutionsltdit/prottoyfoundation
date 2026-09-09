@@ -119,6 +119,10 @@ export default function Income() {
   const sortDir = sortDirRaw === "asc" ? "asc" : "desc";
   const [page, setPage] = useUrlNumberParam("page", 1);
   const [pageSize, setPageSize] = useState(25);
+  // Set by the Members page's "Record income" quick action (item 19) —
+  // consumed once data is loaded, then cleared so it doesn't reopen the
+  // dialog on a later visit via back/forward.
+  const [newFor, setNewFor] = useUrlParam("newFor", "");
 
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -229,13 +233,22 @@ export default function Income() {
     [filtered, currentPage, pageSize]
   );
 
-  function openCreate() {
+  function openCreate(prefillMemberId?: string) {
     setEditing(null);
-    setForm({ ...empty, fund_id: funds[0]?.id ?? "" });
+    setForm({ ...empty, fund_id: funds[0]?.id ?? "", member_id: prefillMemberId ?? "" });
     setAttachmentFile(null);
     setExistingAttachment(null);
     setDialogOpen(true);
   }
+
+  // Consume ?newFor=<memberId> once the member is actually in the loaded
+  // list (guards against a stale/invalid id doing nothing silently wrong).
+  useEffect(() => {
+    if (!newFor || loading) return;
+    if (members.some((m) => m.id === newFor)) openCreate(newFor);
+    setNewFor("");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [newFor, loading, members]);
 
   function openEdit(r: Row) {
     setEditing(r);
