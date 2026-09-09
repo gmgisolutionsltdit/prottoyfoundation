@@ -7,6 +7,7 @@ import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/s
 import { LogOut, ShieldCheck, Menu, PanelLeftClose, PanelLeftOpen, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CommandPalette } from "@/components/CommandPalette";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { navItems } from "@/lib/navItems";
 
 const SIDEBAR_COLLAPSED_KEY = "pf-sidebar-collapsed";
@@ -157,6 +158,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
               ⌘K
             </kbd>
           </Button>
+          <ThemeToggle />
         </div>
 
         <div className="md:hidden flex items-center justify-between border-b bg-card p-3 print:hidden">
@@ -183,6 +185,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
             <Button variant="ghost" size="icon" onClick={() => setPaletteOpen(true)} aria-label="Search">
               <Search className="h-4 w-4" />
             </Button>
+            <ThemeToggle />
             <Button variant="ghost" size="sm" onClick={handleSignOut} aria-label="Sign out">
               <LogOut className="h-4 w-4" />
             </Button>
