@@ -46,6 +46,17 @@ const createSchema = z.object({
   role: z.enum(["admin", "viewer"]),
 });
 
+const editSchema = z.object({
+  full_name: z.string().trim().min(1, "Name required").max(200),
+  username: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .min(3, "Username must be at least 3 characters")
+    .max(50)
+    .regex(/^[a-z0-9_.-]+$/, "Use letters, numbers, dot, dash, or underscore"),
+});
+
 interface AdminRow {
   user_id: string;
   email: string | null;
@@ -71,6 +82,11 @@ export default function UsersPage() {
   const [resetTarget, setResetTarget] = useState<AdminRow | null>(null);
   const [newPassword, setNewPassword] = useState("");
   const [showResetPassword, setShowResetPassword] = useState(false);
+
+  const [editTarget, setEditTarget] = useState<AdminRow | null>(null);
+  const [editFullName, setEditFullName] = useState("");
+  const [editUsername, setEditUsername] = useState("");
+  const [editSubmitting, setEditSubmitting] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -99,9 +115,16 @@ export default function UsersPage() {
     setCreateOpen(false);
     setResetTarget(null);
     setRole("admin");
+    setEditTarget(null);
 
     load();
   }, []);
+
+  function openEdit(r: AdminRow) {
+    setEditFullName(r.full_name ?? "");
+    setEditUsername(usernameToDisplay(r.email));
+    setEditTarget(r);
+  }
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -146,6 +169,53 @@ export default function UsersPage() {
     toast({ title: "Done" });
     load();
     return true;
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editTarget) return;
+    const parsed = editSchema.safeParse({ full_name: editFullName, username: editUsername });
+    if (!parsed.success) {
+      toast({ title: "Invalid input", description: parsed.error.errors[0].message, variant: "destructive" });
+      return;
+    }
+    const nameChanged = parsed.data.full_name !== (editTarget.full_name ?? "");
+    const usernameChanged = parsed.data.username !== usernameToDisplay(editTarget.email);
+    if (!nameChanged && !usernameChanged) {
+      setEditTarget(null);
+      return;
+    }
+
+    setEditSubmitting(true);
+    if (nameChanged) {
+      const { error } = await supabase
+        .from("admin_profiles")
+        .update({ full_name: parsed.data.full_name })
+        .eq("user_id", editTarget.user_id);
+      if (error) {
+        toast({ title: "Update failed", description: safeErrorMessage(error), variant: "destructive" });
+        setEditSubmitting(false);
+        return;
+      }
+    }
+    if (usernameChanged) {
+      const { data, error } = await supabase.functions.invoke("admin-action", {
+        body: { action: "change_username", target_user_id: editTarget.user_id, new_username: parsed.data.username },
+      });
+      if (error || (data && (data as { error?: string }).error)) {
+        toast({
+          title: "Username change failed",
+          description: safeErrorMessage(error ?? (data as { error?: string })?.error),
+          variant: "destructive",
+        });
+        setEditSubmitting(false);
+        return;
+      }
+    }
+    setEditSubmitting(false);
+    toast({ title: "Account updated" });
+    setEditTarget(null);
+    load();
   };
 
   const handleResetPassword = async (e: React.FormEvent) => {
@@ -300,6 +370,9 @@ export default function UsersPage() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => openEdit(r)}>
+                                Edit
+                              </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => setResetTarget(r)}>
                                 Reset password
                               </DropdownMenuItem>
@@ -394,6 +467,41 @@ export default function UsersPage() {
             </div>
             <DialogFooter>
               <Button type="submit">Update password</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!editTarget}
+        onOpenChange={(o) => !o && setEditTarget(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit account</DialogTitle>
+            <DialogDescription>
+              Update the name or username for {usernameToDisplay(editTarget?.email ?? null)}.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleEditSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-name">Full name</Label>
+              <Input id="edit-name" value={editFullName} onChange={(e) => setEditFullName(e.target.value)} required />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-username">Username</Label>
+              <Input
+                id="edit-username"
+                value={editUsername}
+                onChange={(e) => setEditUsername(e.target.value)}
+                autoComplete="username"
+                required
+              />
+            </div>
+            <DialogFooter>
+              <Button type="submit" disabled={editSubmitting}>
+                {editSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Save changes
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>
