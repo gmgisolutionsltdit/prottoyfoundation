@@ -25,6 +25,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -92,12 +93,14 @@ interface Row extends Txn {
 
 export default function Income() {
   const { user } = useAuth();
+  const { setDirty } = useUnsavedChanges();
   const [rows, setRows] = useState<Row[]>([]);
   const [funds, setFunds] = useState<Fund[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [fundFilter, setFundFilter] = useState<string>("all");
+  const [memberFilter, setMemberFilter] = useState<string>("all");
   const [monthFilter, setMonthFilter] = useState<string>("");
   // Section 6.1 — From/To date-range filter (independent of the single Target Month filter above).
   const [fromDate, setFromDate] = useState<string>("");
@@ -127,6 +130,13 @@ export default function Income() {
     void load();
   }, []);
 
+  // An open create/edit dialog is the "something to lose" signal for the
+  // sidebar's unsaved-changes guard.
+  useEffect(() => {
+    setDirty(dialogOpen);
+    return () => setDirty(false);
+  }, [dialogOpen, setDirty]);
+
   async function load() {
     setLoading(true);
     const [t, f, m, r] = await Promise.all([
@@ -154,6 +164,7 @@ export default function Income() {
     const q = search.trim().toLowerCase();
     const list = rows.filter((r) => {
       if (fundFilter !== "all" && r.fund_id !== fundFilter) return false;
+      if (memberFilter !== "all" && r.member_id !== memberFilter) return false;
       // Section 1 / 12.5 — Target Month filter.
       if (monthFilter && String(r.txn_date).slice(0, 7) !== monthFilter) return false;
       // Section 6.1 — From/To date range filter.
@@ -183,7 +194,7 @@ export default function Income() {
       }
       return String(a.txn_date).localeCompare(String(b.txn_date)) * dir;
     });
-  }, [rows, search, fundFilter, monthFilter, fromDate, toDate, sortBy, sortDir]);
+  }, [rows, search, fundFilter, memberFilter, monthFilter, fromDate, toDate, sortBy, sortDir]);
 
 
   const totals = useMemo(
@@ -193,7 +204,7 @@ export default function Income() {
 
   useEffect(() => {
     setPage(1);
-  }, [search, fundFilter, monthFilter, fromDate, toDate, sortBy, sortDir, pageSize]);
+  }, [search, fundFilter, memberFilter, monthFilter, fromDate, toDate, sortBy, sortDir, pageSize]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const currentPage = Math.min(page, totalPages);
@@ -388,6 +399,15 @@ export default function Income() {
                 <SelectContent>
                   <SelectItem value="all">All funds</SelectItem>
                   {funds.map((f) => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Select value={memberFilter} onValueChange={setMemberFilter}>
+                <SelectTrigger className="w-full sm:w-56"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All members</SelectItem>
+                  {members.map((m) => (
+                    <SelectItem key={m.id} value={m.id}>#{m.member_no} — {m.full_name}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               <Input

@@ -4,6 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/hooks/useAuth";
+import { UnsavedChangesProvider } from "@/hooks/useUnsavedChanges";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
 import AuthPage from "./pages/Auth";
@@ -30,28 +31,30 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
-          <Routes>
-            <Route path="/auth" element={<AuthPage />} />
-            <Route path="/signup" element={<SignupPage />} />
-            
-            <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
-            <Route path="/members" element={<ProtectedRoute><Members /></ProtectedRoute>} />
-            <Route path="/funds" element={<ProtectedRoute><Funds /></ProtectedRoute>} />
-            <Route path="/income" element={<ProtectedRoute><Income /></ProtectedRoute>} />
-            <Route path="/expenses" element={<ProtectedRoute><Expenses /></ProtectedRoute>} />
-            <Route path="/member-types" element={<ProtectedRoute><MemberTypes /></ProtectedRoute>} />
-            <Route path="/dues" element={<ProtectedRoute><Dues /></ProtectedRoute>} />
-            <Route path="/meetings" element={<ProtectedRoute><Meetings /></ProtectedRoute>} />
-            <Route path="/export" element={<ProtectedRoute><DataExport /></ProtectedRoute>} />
+          <UnsavedChangesProvider>
+            <Routes>
+              <Route path="/auth" element={<AuthPage />} />
+              <Route path="/signup" element={<SignupPage />} />
 
-            <Route path="/blood-donors" element={<ProtectedRoute><BloodDonors /></ProtectedRoute>} />
-            <Route
-              path="/users"
-              element={<ProtectedRoute requireSuperAdmin><Users /></ProtectedRoute>}
-            />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+              <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+              <Route path="/members" element={<ProtectedRoute><Members /></ProtectedRoute>} />
+              <Route path="/funds" element={<ProtectedRoute><Funds /></ProtectedRoute>} />
+              <Route path="/income" element={<ProtectedRoute><Income /></ProtectedRoute>} />
+              <Route path="/expenses" element={<ProtectedRoute><Expenses /></ProtectedRoute>} />
+              <Route path="/member-types" element={<ProtectedRoute><MemberTypes /></ProtectedRoute>} />
+              <Route path="/dues" element={<ProtectedRoute><Dues /></ProtectedRoute>} />
+              <Route path="/meetings" element={<ProtectedRoute><Meetings /></ProtectedRoute>} />
+              <Route path="/export" element={<ProtectedRoute><DataExport /></ProtectedRoute>} />
+
+              <Route path="/blood-donors" element={<ProtectedRoute><BloodDonors /></ProtectedRoute>} />
+              <Route
+                path="/users"
+                element={<ProtectedRoute requireSuperAdmin><Users /></ProtectedRoute>}
+              />
+              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </UnsavedChangesProvider>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>

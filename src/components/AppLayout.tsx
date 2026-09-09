@@ -1,6 +1,7 @@
 import { ReactNode, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import {
@@ -43,19 +44,31 @@ const linkClass = ({ isActive }: { isActive: boolean }) =>
 
 function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
   const { isSuperAdmin } = useAuth();
+  const { confirmLeave, setDirty } = useUnsavedChanges();
+  const navigate = useNavigate();
+
+  // An unsaved entry form is open — confirm before discarding it via nav click.
+  const guardedNavigate = (to: string) => (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!confirmLeave()) return;
+    setDirty(false);
+    onNavigate?.();
+    navigate(to);
+  };
+
   return (
     <nav className="flex-1 space-y-1 p-3">
       {navItems.map((item) => {
         const Icon = item.icon;
         return (
-          <NavLink key={item.to} to={item.to} end={item.end} className={linkClass} onClick={onNavigate}>
+          <NavLink key={item.to} to={item.to} end={item.end} className={linkClass} onClick={guardedNavigate(item.to)}>
             <Icon className="h-4 w-4" />
             {item.label}
           </NavLink>
         );
       })}
       {isSuperAdmin && (
-        <NavLink to="/users" className={linkClass} onClick={onNavigate}>
+        <NavLink to="/users" className={linkClass} onClick={guardedNavigate("/users")}>
           <ShieldCheck className="h-4 w-4" />
           Users
         </NavLink>

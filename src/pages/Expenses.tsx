@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/pagination";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -63,6 +64,7 @@ interface Row extends Expense {
 
 export default function Expenses() {
   const { user } = useAuth();
+  const { setDirty } = useUnsavedChanges();
   const [rows, setRows] = useState<Row[]>([]);
   const [funds, setFunds] = useState<Fund[]>([]);
   const [loading, setLoading] = useState(true);
@@ -90,6 +92,13 @@ export default function Expenses() {
 
     void load();
   }, []);
+
+  // An open create/edit dialog is the "something to lose" signal for the
+  // sidebar's unsaved-changes guard.
+  useEffect(() => {
+    setDirty(dialogOpen);
+    return () => setDirty(false);
+  }, [dialogOpen, setDirty]);
 
   async function load() {
     setLoading(true);
