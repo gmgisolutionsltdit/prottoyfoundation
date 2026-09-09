@@ -20,7 +20,10 @@ jobs:
       - run: npm ci
 
       - name: Typecheck
-        run: npx tsc --noEmit -p tsconfig.app.json
+        # Deliberately the npm script, not a bare `tsc --noEmit` — the root
+        # tsconfig has "files": [] and only project references, so without
+        # -p it type-checks nothing and passes vacuously.
+        run: npm run typecheck
 
       - name: Lint
         run: npm run lint

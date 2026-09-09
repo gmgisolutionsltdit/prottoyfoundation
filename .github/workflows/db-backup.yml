@@ -1,10 +1,19 @@
 name: Database backup
 
-# Manual only — run this before/after anything risky, or whenever you want a
-# recoverable snapshot. Downloads as a workflow artifact (see the run's
-# "Artifacts" section), kept for 90 days. Captures the database (schema +
-# public-schema data) AND the transaction-attachments Storage bucket, so one
-# run is one restorable snapshot of everything.
+# Runs automatically every Sunday 02:00 UTC (08:00 Bangladesh time), and on
+# demand — run it manually before/after anything risky too. Downloads as a
+# workflow artifact (see the run's "Artifacts" section). Captures the database
+# (schema + public-schema data) AND the transaction-attachments Storage
+# bucket, so one run is one restorable snapshot of everything.
+#
+# Weekly rather than daily on purpose: the artifact includes every attachment
+# image, so daily runs at 90-day retention would pile up against the account's
+# Actions storage quota. At roughly 20 transactions/month, a week is a small
+# re-enterable window. To go daily, change the cron to '0 2 * * *' — and
+# consider lowering the scheduled retention below if storage gets tight.
+#
+# Scheduled runs keep 35 days (5 rolling snapshots); manual runs keep 90, so a
+# backup taken deliberately before a risky change sticks around much longer.
 #
 # To restore: use db-restore.yml (workflow_dispatch, pass this run's ID as
 # source_run_id). Do not hand-apply the .sql file with psql — restoring onto
@@ -17,6 +26,8 @@ name: Database backup
 
 on:
   workflow_dispatch: {}
+  schedule:
+    - cron: "0 2 * * 0"
 
 jobs:
   backup:
@@ -121,5 +132,5 @@ jobs:
           path: |
             backup/*.sql
             backup/storage/**
-          retention-days: 90
+          retention-days: ${{ github.event_name == 'schedule' && 35 || 90 }}
           if-no-files-found: ignore

@@ -2,7 +2,10 @@
 // Avoids leaking internal schema details (table/column/constraint names)
 // in user-visible toasts. Full details are logged to the console only.
 
-type AnyError = { message?: string; code?: string; details?: string } | null | undefined;
+// `unknown` is included deliberately: under `strict`, a `catch (err)` binding
+// is typed `unknown`, and every call site here passes one. Narrowing happens
+// below rather than forcing a cast at each of them.
+type AnyError = { message?: string; code?: string; details?: string } | null | undefined | unknown;
 
 const CODE_MAP: Record<string, string> = {
   "23505": "A record with that value already exists.",
@@ -29,7 +32,7 @@ export function safeErrorMessage(error: AnyError, fallback = "Something went wro
   const code = (error as { code?: string }).code;
   if (code && CODE_MAP[code]) return CODE_MAP[code];
 
-  const msg = (error.message || "").toLowerCase();
+  const msg = ((error as { message?: string }).message || "").toLowerCase();
   if (msg.includes("invalid login credentials")) return "Invalid email or password.";
   if (msg.includes("email not confirmed")) return "Please confirm your email before signing in.";
   if (msg.includes("rate limit") || msg.includes("too many")) return "Too many attempts. Please try again later.";

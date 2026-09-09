@@ -16,10 +16,13 @@
     "jsx": "react-jsx",
 
     /* Linting */
-    "strict": false,
+    // strict was off for most of this project's life; turning it on cost 9
+    // fixes, all the same one (a `catch` binding is `unknown` under strict).
+    // Worth keeping on: the class of bug it catches — a function quietly
+    // accepting the wrong argument type — has actually shipped here before.
+    "strict": true,
     "noUnusedLocals": false,
     "noUnusedParameters": false,
-    "noImplicitAny": false,
     "noFallthroughCasesInSwitch": false,
 
     "paths": {
