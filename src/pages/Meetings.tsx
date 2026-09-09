@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useDirtyForm, guardedOpenChange } from "@/hooks/useDirtyForm";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
@@ -22,7 +23,9 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { Plus, Trash2, Pencil, Users, ChevronDown, CalendarDays } from "lucide-react";
+import { Plus, Trash2, Pencil, Users, ChevronDown, CalendarDays, CalendarClock } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/EmptyState";
 import { formatDMY } from "@/lib/format";
 import { safeErrorMessage } from "@/lib/errors";
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
@@ -81,6 +84,12 @@ export default function Meetings() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Meeting | null>(null);
   const [form, setForm] = useState<FormValues>(emptyForm);
+  const dirtyForm = useDirtyForm(form);
+  useEffect(() => {
+    if (dialogOpen) dirtyForm.snapshot();
+    else dirtyForm.clear();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dialogOpen]);
   const [attendeeIds, setAttendeeIds] = useState<Set<string>>(new Set());
   const [submitting, setSubmitting] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Meeting | null>(null);
@@ -308,8 +317,21 @@ export default function Meetings() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {loading && (
+              <div className="space-y-2">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <Skeleton key={i} className="h-16 w-full" />
+                ))}
+              </div>
+            )}
             {pageRows.length === 0 && !loading && (
-              <p className="py-10 text-center text-muted-foreground">No meetings recorded yet.</p>
+              <EmptyState
+                icon={CalendarClock}
+                title="No meetings recorded yet"
+                description="Add your first meeting to start tracking agendas and attendance."
+                actionLabel={!isViewer ? "Add meeting" : undefined}
+                onAction={!isViewer ? openCreate : undefined}
+              />
             )}
 
             <Accordion type="single" collapsible className="space-y-2">
@@ -416,7 +438,7 @@ export default function Meetings() {
         </Card>
       </div>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <Dialog open={dialogOpen} onOpenChange={guardedOpenChange(dirtyForm.isDirty, setDialogOpen)}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editing ? "Edit meeting" : "Add meeting"}</DialogTitle>

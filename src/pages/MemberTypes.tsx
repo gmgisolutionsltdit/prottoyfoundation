@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useDirtyForm, guardedOpenChange } from "@/hooks/useDirtyForm";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
@@ -9,6 +10,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { TableSkeletonRows } from "@/components/TableSkeleton";
+import { EmptyStateRow } from "@/components/EmptyState";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
@@ -18,7 +21,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Pencil, Power, Trash2 } from "lucide-react";
+import { Plus, Pencil, Power, Trash2, Tags } from "lucide-react";
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
 import { safeErrorMessage } from "@/lib/errors";
 
@@ -46,6 +49,12 @@ export default function MemberTypes() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<MemberTypeRow | null>(null);
   const [form, setForm] = useState<FormValues>(empty);
+  const dirtyForm = useDirtyForm(form);
+  useEffect(() => {
+    if (open) dirtyForm.snapshot();
+    else dirtyForm.clear();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
   const [submitting, setSubmitting] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<MemberTypeRow | null>(null);
 
@@ -150,7 +159,7 @@ export default function MemberTypes() {
           <CardContent>
             <div className="rounded-md border">
               <Table>
-                <TableHeader>
+                <TableHeader className="sticky top-0 z-10 bg-card">
                   <TableRow>
                     <TableHead className="w-20">Order</TableHead>
                     <TableHead>Name</TableHead>
@@ -160,8 +169,16 @@ export default function MemberTypes() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
+                  {loading && <TableSkeletonRows columns={5} />}
                   {rows.length === 0 && !loading && (
-                    <TableRow><TableCell colSpan={5} className="h-24 text-center text-muted-foreground">No types defined.</TableCell></TableRow>
+                    <EmptyStateRow
+                      colSpan={5}
+                      icon={Tags}
+                      title="No types defined"
+                      description="Add a member type to start categorizing members."
+                      actionLabel={!isViewer ? "Add type" : undefined}
+                      onAction={!isViewer ? openCreate : undefined}
+                    />
                   )}
                   {rows.map((r) => (
                     <TableRow key={r.id}>
@@ -191,7 +208,7 @@ export default function MemberTypes() {
         </Card>
       </div>
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={guardedOpenChange(dirtyForm.isDirty, setOpen)}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{editing ? "Edit type" : "Add type"}</DialogTitle>

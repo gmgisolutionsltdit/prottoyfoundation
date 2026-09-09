@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useDirtyForm, guardedOpenChange } from "@/hooks/useDirtyForm";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
@@ -23,8 +24,10 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Pencil, Power, Trash2 } from "lucide-react";
+import { Plus, Pencil, Power, Trash2, Wallet } from "lucide-react";
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
+import { TableSkeletonRows } from "@/components/TableSkeleton";
+import { EmptyStateRow } from "@/components/EmptyState";
 import type { Database } from "@/integrations/supabase/types";
 import { safeErrorMessage } from "@/lib/errors";
 
@@ -58,6 +61,12 @@ export default function Funds() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Fund | null>(null);
   const [form, setForm] = useState<FormValues>(empty);
+  const dirtyForm = useDirtyForm(form);
+  useEffect(() => {
+    if (dialogOpen) dirtyForm.snapshot();
+    else dirtyForm.clear();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dialogOpen]);
   const [submitting, setSubmitting] = useState(false);
   const [toggleTarget, setToggleTarget] = useState<Fund | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Fund | null>(null);
@@ -183,7 +192,7 @@ export default function Funds() {
           <CardContent>
             <div className="rounded-md border">
               <Table>
-                <TableHeader>
+                <TableHeader className="sticky top-0 z-10 bg-card">
                   <TableRow>
                     <TableHead className="w-16">#</TableHead>
                     <TableHead>Code</TableHead>
@@ -194,6 +203,17 @@ export default function Funds() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
+                  {loading && <TableSkeletonRows columns={6} />}
+                  {funds.length === 0 && !loading && (
+                    <EmptyStateRow
+                      colSpan={6}
+                      icon={Wallet}
+                      title="No funds set up"
+                      description="Add a fund to start recording income and expenses against it."
+                      actionLabel={!isViewer ? "Add fund" : undefined}
+                      onAction={!isViewer ? openCreate : undefined}
+                    />
+                  )}
                   {funds.map((f) => (
                     <TableRow key={f.id}>
                       <TableCell className="font-mono">{f.sort_order}</TableCell>
@@ -241,7 +261,7 @@ export default function Funds() {
         </Card>
       </div>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <Dialog open={dialogOpen} onOpenChange={guardedOpenChange(dirtyForm.isDirty, setDialogOpen)}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{editing ? "Edit fund" : "Add fund"}</DialogTitle>

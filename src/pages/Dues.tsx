@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Image as ImageIcon, FileDown, ChevronDown } from "lucide-react";
+import { Image as ImageIcon, FileDown, ChevronDown, Receipt } from "lucide-react";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -14,6 +14,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { TablePagination } from "@/components/TablePagination";
+import { TableSkeletonRows } from "@/components/TableSkeleton";
+import { EmptyStateRow } from "@/components/EmptyState";
 import { formatBDT } from "@/lib/format";
 import { toast } from "@/hooks/use-toast";
 import { safeErrorMessage } from "@/lib/errors";
@@ -416,7 +418,7 @@ export default function Dues() {
                   </p>
                 </div>
               <Table className="min-w-max">
-                <TableHeader>
+                <TableHeader className="sticky top-0 z-10 bg-background">
                   <TableRow>
                     <TableHead className="w-20">Member Number</TableHead>
                     <TableHead>Member Name</TableHead>
@@ -432,12 +434,14 @@ export default function Dues() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
+                  {loading && <TableSkeletonRows columns={11} />}
                   {rows.length === 0 && !loading && (
-                    <TableRow>
-                      <TableCell colSpan={11} className="h-24 text-center text-muted-foreground">
-                        No subscriptions match.
-                      </TableCell>
-                    </TableRow>
+                    <EmptyStateRow
+                      colSpan={11}
+                      icon={Receipt}
+                      title="No subscriptions match"
+                      description="Try a different member, fund, or month filter."
+                    />
                   )}
                   {pageRows.map((r) => (
                     <TableRow key={r.key}>

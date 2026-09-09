@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useDirtyForm, guardedOpenChange } from "@/hooks/useDirtyForm";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
@@ -20,6 +21,8 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { TablePagination } from "@/components/TablePagination";
+import { TableSkeletonRows } from "@/components/TableSkeleton";
+import { EmptyStateRow } from "@/components/EmptyState";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
@@ -28,7 +31,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Search, Receipt, Pencil, Trash2, Paperclip, X } from "lucide-react";
+import { Plus, Search, Receipt, Pencil, Trash2, Paperclip, X, ArrowDownCircle } from "lucide-react";
 import { formatBDT, formatDMY, PAYMENT_METHODS, PAYMENT_LABEL, type PaymentMethod } from "@/lib/format";
 import { uploadAttachment, deleteAttachment } from "@/lib/uploadAttachment";
 import { AttachmentThumb, AttachmentViewLink } from "@/components/AttachmentThumb";
@@ -113,6 +116,12 @@ export default function Income() {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState<FormValues>(empty);
+  const dirtyForm = useDirtyForm(form);
+  useEffect(() => {
+    if (dialogOpen) dirtyForm.snapshot();
+    else dirtyForm.clear();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dialogOpen]);
   const [submitting, setSubmitting] = useState(false);
   const [editing, setEditing] = useState<Row | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Row | null>(null);
@@ -472,9 +481,9 @@ export default function Income() {
               </div>
             </div>
 
-            <div className="rounded-md border">
+            <div className="rounded-md border max-h-[70vh] overflow-auto">
               <Table>
-                <TableHeader>
+                <TableHeader className="sticky top-0 z-10 bg-card">
                   <TableRow>
                     <TableHead>Date</TableHead>
                     <TableHead>Receipt</TableHead>
@@ -490,12 +499,16 @@ export default function Income() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
+                  {loading && <TableSkeletonRows columns={10} />}
                   {filtered.length === 0 && !loading && (
-                    <TableRow>
-                      <TableCell colSpan={10} className="h-24 text-center text-muted-foreground">
-                        No income recorded.
-                      </TableCell>
-                    </TableRow>
+                    <EmptyStateRow
+                      colSpan={10}
+                      icon={ArrowDownCircle}
+                      title="No income recorded"
+                      description="Record your first donation or payment to see it here."
+                      actionLabel={!isViewer ? "Record income" : undefined}
+                      onAction={!isViewer ? openCreate : undefined}
+                    />
                   )}
                   {pageRows.map((r) => (
                     <TableRow key={r.id}>
@@ -565,7 +578,7 @@ export default function Income() {
         </Card>
       </div>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <Dialog open={dialogOpen} onOpenChange={guardedOpenChange(dirtyForm.isDirty, setDialogOpen)}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>{editing ? "Edit income" : "Record income"}</DialogTitle>

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useDirtyForm, guardedOpenChange } from "@/hooks/useDirtyForm";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -86,6 +87,12 @@ export default function UsersPage() {
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<CreateRole>("admin");
   const [showCreatePassword, setShowCreatePassword] = useState(false);
+  const dirtyCreateForm = useDirtyForm({ username, fullName, password, role });
+  useEffect(() => {
+    if (createOpen) dirtyCreateForm.snapshot();
+    else dirtyCreateForm.clear();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [createOpen]);
 
   const [resetTarget, setResetTarget] = useState<AdminRow | null>(null);
   const [newPassword, setNewPassword] = useState("");
@@ -249,7 +256,7 @@ export default function UsersPage() {
             <h1 className="text-2xl font-semibold">Users</h1>
             <p className="text-sm text-muted-foreground">Create and manage admin and viewer accounts.</p>
           </div>
-          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+          <Dialog open={createOpen} onOpenChange={guardedOpenChange(dirtyCreateForm.isDirty, setCreateOpen)}>
             <DialogTrigger asChild>
               <Button><Plus className="mr-2 h-4 w-4" />Create account</Button>
             </DialogTrigger>

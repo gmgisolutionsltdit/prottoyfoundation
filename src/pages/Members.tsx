@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useDirtyForm, guardedOpenChange } from "@/hooks/useDirtyForm";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
@@ -38,6 +39,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { TablePagination } from "@/components/TablePagination";
+import { TableSkeletonRows } from "@/components/TableSkeleton";
+import { EmptyStateRow } from "@/components/EmptyState";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -50,7 +53,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { Plus, Search, Pencil, Power, Wallet, Trash2, ChevronDown } from "lucide-react";
+import { Plus, Search, Pencil, Power, Wallet, Trash2, ChevronDown, Users } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import type { Database } from "@/integrations/supabase/types";
@@ -102,6 +105,12 @@ export default function Members() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Member | null>(null);
   const [form, setForm] = useState<FormValues>(emptyForm);
+  const dirtyForm = useDirtyForm(form);
+  useEffect(() => {
+    if (dialogOpen) dirtyForm.snapshot();
+    else dirtyForm.clear();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dialogOpen]);
   const [submitting, setSubmitting] = useState(false);
 
   const [toggleTarget, setToggleTarget] = useState<Member | null>(null);
@@ -374,9 +383,9 @@ export default function Members() {
               </div>
             </div>
 
-            <div className="rounded-md border">
+            <div className="rounded-md border max-h-[70vh] overflow-auto">
               <Table>
-                <TableHeader>
+                <TableHeader className="sticky top-0 z-10 bg-card">
                   <TableRow>
                     <TableHead className="w-20">No.</TableHead>
                     <TableHead>Name</TableHead>
@@ -391,12 +400,16 @@ export default function Members() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
+                  {loading && <TableSkeletonRows columns={10} />}
                   {filtered.length === 0 && !loading && (
-                    <TableRow>
-                      <TableCell colSpan={10} className="h-24 text-center text-muted-foreground">
-                        No members found.
-                      </TableCell>
-                    </TableRow>
+                    <EmptyStateRow
+                      colSpan={10}
+                      icon={Users}
+                      title="No members found"
+                      description="Add your first member to get started."
+                      actionLabel={!isViewer ? "Add member" : undefined}
+                      onAction={!isViewer ? openCreate : undefined}
+                    />
                   )}
                   {pageRows.map((m) => (
                     <TableRow key={m.id}>
@@ -467,7 +480,7 @@ export default function Members() {
         </Card>
       </div>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <Dialog open={dialogOpen} onOpenChange={guardedOpenChange(dirtyForm.isDirty, setDialogOpen)}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>{editing ? "Edit member" : "Add member"}</DialogTitle>

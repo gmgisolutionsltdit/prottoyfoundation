@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useDirtyForm, guardedOpenChange } from "@/hooks/useDirtyForm";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
@@ -9,12 +10,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { TableSkeletonRows } from "@/components/TableSkeleton";
+import { EmptyStateRow } from "@/components/EmptyState";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { formatDMY } from "@/lib/format";
-import { Plus, Search, Pencil, Trash2 } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, Droplet } from "lucide-react";
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
 import { safeErrorMessage } from "@/lib/errors";
 import type { Database } from "@/integrations/supabase/types";
@@ -73,6 +76,12 @@ export default function BloodDonors() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Donor | null>(null);
   const [form, setForm] = useState<FormValues>(emptyForm);
+  const dirtyForm = useDirtyForm(form);
+  useEffect(() => {
+    if (dialogOpen) dirtyForm.snapshot();
+    else dirtyForm.clear();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dialogOpen]);
   const [submitting, setSubmitting] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Donor | null>(null);
 
@@ -224,9 +233,9 @@ export default function BloodDonors() {
               </Select>
             </div>
 
-            <div className="rounded-md border">
+            <div className="rounded-md border max-h-[70vh] overflow-auto">
               <Table>
-                <TableHeader>
+                <TableHeader className="sticky top-0 z-10 bg-card">
                   <TableRow>
                     <TableHead className="w-16">SL</TableHead>
                     <TableHead>Name</TableHead>
@@ -240,10 +249,16 @@ export default function BloodDonors() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
+                  {loading && <TableSkeletonRows columns={9} />}
                   {filtered.length === 0 && !loading && (
-                    <TableRow>
-                      <TableCell colSpan={9} className="h-24 text-center text-muted-foreground">No donors found.</TableCell>
-                    </TableRow>
+                    <EmptyStateRow
+                      colSpan={9}
+                      icon={Droplet}
+                      title="No donors found"
+                      description="Add the first blood donor to get started."
+                      actionLabel={!isViewer ? "Add donor" : undefined}
+                      onAction={!isViewer ? openCreate : undefined}
+                    />
                   )}
                   {filtered.map((d) => (
                     <TableRow key={d.id}>
@@ -289,7 +304,7 @@ export default function BloodDonors() {
         </Card>
       </div>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <Dialog open={dialogOpen} onOpenChange={guardedOpenChange(dirtyForm.isDirty, setDialogOpen)}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editing ? "Edit donor" : "Add donor"}</DialogTitle>
