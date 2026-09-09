@@ -63,7 +63,7 @@ export default function Dues() {
   const [fundFilters, setFundFilters] = useState<Set<string>>(new Set());
   const [endMonth, setEndMonth] = useState<string>(defaultEnd);
   // Section 2.2 — sorting.
-  const [sortBy, setSortBy] = useState<"member" | "amount" | "date" | "status" | "fund">("member");
+  const [sortBy, setSortBy] = useState<"member" | "memberNo" | "amount" | "date" | "status" | "fund">("member");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -158,6 +158,7 @@ export default function Dues() {
         const dir = sortDir === "asc" ? 1 : -1;
         let cmp = 0;
         if (sortBy === "member") cmp = a.memberName.localeCompare(b.memberName);
+        else if (sortBy === "memberNo") cmp = a.memberNo - b.memberNo;
         else if (sortBy === "amount") cmp = a.due - b.due;
         else if (sortBy === "date") cmp = a.joiningYm.localeCompare(b.joiningYm);
         else if (sortBy === "fund") cmp = a.fundName.localeCompare(b.fundName);
@@ -369,6 +370,8 @@ export default function Dues() {
                   <SelectContent>
                     <SelectItem value="member:asc">Member — A→Z</SelectItem>
                     <SelectItem value="member:desc">Member — Z→A</SelectItem>
+                    <SelectItem value="memberNo:asc">Member No — low to high</SelectItem>
+                    <SelectItem value="memberNo:desc">Member No — high to low</SelectItem>
                     <SelectItem value="amount:desc">Due amount — high to low</SelectItem>
                     <SelectItem value="amount:asc">Due amount — low to high</SelectItem>
                     <SelectItem value="date:desc">Joining date — newest first</SelectItem>
