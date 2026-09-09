@@ -17,6 +17,12 @@ jobs:
           fi
 
           psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 --no-psqlrc <<'SQL'
+          \echo '=== storage attachment policies (viewers must have SELECT) ==='
+          SELECT policyname, cmd
+          FROM pg_policies
+          WHERE schemaname = 'storage' AND tablename = 'objects'
+          ORDER BY cmd, policyname;
+
           \echo '=== transactions.is_anonymous column ==='
           SELECT data_type, is_nullable, column_default
           FROM information_schema.columns
