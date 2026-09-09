@@ -20,34 +20,10 @@ import { formatBDT } from "@/lib/format";
 import { toast } from "@/hooks/use-toast";
 import { safeErrorMessage } from "@/lib/errors";
 
-type Fund = { id: string; name: string; code: string; is_one_time: boolean };
-type Member = { id: string; full_name: string; member_no: number; is_active: boolean };
-type Subscription = {
-  id: string;
-  member_id: string;
-  fund_id: string;
-  monthly_amount: number;
-  start_date: string;
-  end_date: string | null;
-  is_active: boolean;
-};
-type Txn = { member_id: string | null; fund_id: string; amount: number; txn_date: string; for_month: string | null };
-
-const ALL = "all";
-
-function ymToDate(ym: string) {
-  return new Date(`${ym}-01T00:00:00`);
-}
-function dateToYm(d: Date | string) {
-  const dd = typeof d === "string" ? new Date(d) : d;
-  return `${dd.getFullYear()}-${String(dd.getMonth() + 1).padStart(2, "0")}`;
-}
-function monthsBetween(startYm: string, endYm: string) {
-  const s = ymToDate(startYm);
-  const e = ymToDate(endYm);
-  if (e < s) return 0;
-  return (e.getFullYear() - s.getFullYear()) * 12 + (e.getMonth() - s.getMonth()) + 1;
-}
+import {
+  ALL, computeDueRows, dateToYm,
+  type DuesFund as Fund, type DuesMember as Member, type DuesSubscription as Subscription, type DuesTxn as Txn,
+} from "@/lib/dues";
 
 export default function Dues() {
   const [funds, setFunds] = useState<Fund[]>([]);
@@ -94,69 +70,7 @@ export default function Dues() {
   const fundMap = useMemo(() => new Map(funds.map((f) => [f.id, f])), [funds]);
 
   const rows = useMemo(() => {
-    return subs
-      .filter((s) => memberFilter === ALL || s.member_id === memberFilter)
-      .filter((s) => fundFilters.size === 0 || fundFilters.has(s.fund_id))
-      .map((s) => {
-        const fund = fundMap.get(s.fund_id);
-        const member = memberMap.get(s.member_id);
-        const startYm = dateToYm(s.start_date);
-        const isOneTime = !!fund?.is_one_time;
-
-        let months: number;
-        let expected: number;
-        let paid: number;
-        if (isOneTime) {
-          months = 1;
-          expected = s.monthly_amount;
-          paid = txns
-            .filter((t) => t.member_id === s.member_id && t.fund_id === s.fund_id)
-            .reduce((sum, t) => sum + t.amount, 0);
-        } else {
-          const effectiveStart = startYm > endMonth ? endMonth : startYm;
-          months = monthsBetween(effectiveStart, endMonth);
-          expected = months * s.monthly_amount;
-          // A payment counts toward the month it's FOR (for_month), not the
-          // date it happened to be recorded on (txn_date) — historical
-          // payments are frequently bulk-entered long after the month they
-          // cover, which previously made an earlier cutoff wrongly exclude
-          // them. Falls back to txn_date only when for_month isn't set.
-          paid = txns
-            .filter((t) => {
-              if (t.member_id !== s.member_id || t.fund_id !== s.fund_id) return false;
-              const coverageYm = t.for_month ? dateToYm(t.for_month) : dateToYm(t.txn_date);
-              return coverageYm <= endMonth && coverageYm >= startYm;
-            })
-            .reduce((sum, t) => sum + t.amount, 0);
-        }
-        const rawDue = expected - paid;
-        const due = isOneTime ? Math.max(rawDue, 0) : rawDue;
-        const monthlyAmount = isOneTime ? 0 : s.monthly_amount;
-        const totalMonths = isOneTime ? 0 : months;
-        const paidMonths = monthlyAmount > 0 ? Math.floor(paid / monthlyAmount) : null;
-        const dueMonths = paidMonths === null ? null : Math.max(totalMonths - paidMonths, 0);
-        return {
-          key: s.id,
-          memberId: s.member_id,
-          memberNo: member?.member_no ?? 0,
-          memberName: member?.full_name ?? "—",
-          fundName: fund?.name ?? "—",
-          monthly: monthlyAmount,
-          months: totalMonths,
-          joiningYm: startYm,
-          joiningLabel: ymToDate(startYm).toLocaleString("en-US", { month: "long", year: "numeric" }),
-          // Section 8 — presentation-only joining-month breakdown.
-          joiningReg: isOneTime ? s.monthly_amount : 0,
-          joiningMonthly: isOneTime ? 0 : s.monthly_amount,
-          expected,
-          paid,
-          due,
-          paidMonths,
-          dueMonths,
-        };
-
-      })
-
+    return computeDueRows(subs, fundMap, memberMap, txns, endMonth, memberFilter, fundFilters)
       .sort((a, b) => {
         const dir = sortDir === "asc" ? 1 : -1;
         let cmp = 0;

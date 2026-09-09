@@ -21,18 +21,7 @@ import {
   type DuesExportRow, type MeetingExportRow, type BloodDonorExportRow,
 } from "@/lib/dataExportSheets";
 
-// Mirrors Dues.tsx's own cutoff-month calculation, duplicated here since
-// that logic lives inside the Dues page component, not a shared lib.
-function dateToYm(d: Date | string) {
-  const dd = typeof d === "string" ? new Date(d) : d;
-  return `${dd.getFullYear()}-${String(dd.getMonth() + 1).padStart(2, "0")}`;
-}
-function monthsBetween(startYm: string, endYm: string) {
-  const s = new Date(`${startYm}-01T00:00:00`);
-  const e = new Date(`${endYm}-01T00:00:00`);
-  if (e < s) return 0;
-  return (e.getFullYear() - s.getFullYear()) * 12 + (e.getMonth() - s.getMonth()) + 1;
-}
+import { computeDueRows, dateToYm, type DuesFund, type DuesMember } from "@/lib/dues";
 
 export default function DataExport() {
   const { isAdmin, isSuperAdmin, user } = useAuth();
@@ -150,59 +139,31 @@ export default function DataExport() {
 
   async function buildDues(): Promise<DuesExportRow[]> {
     const [f, m, s, t] = await Promise.all([
-      supabase.from("funds").select("id,name,is_one_time"),
-      supabase.from("members").select("id,full_name,member_no"),
-      supabase.from("member_fund_subscriptions").select("id,member_id,fund_id,monthly_amount,start_date").eq("is_active", true),
+      supabase.from("funds").select("id,name,code,is_one_time"),
+      supabase.from("members").select("id,full_name,member_no,is_active"),
+      supabase.from("member_fund_subscriptions").select("*").eq("is_active", true),
       supabase.from("transactions").select("member_id,fund_id,amount,txn_date,for_month").not("member_id", "is", null),
     ]);
     if (f.error) throw f.error;
-    const fundMap = new Map((f.data ?? []).map((x) => [x.id, x]));
-    const memberMap = new Map((m.data ?? []).map((x) => [x.id, x]));
+    const fundMap = new Map<string, DuesFund>((f.data ?? []).map((x) => [x.id, x as DuesFund]));
+    const memberMap = new Map<string, DuesMember>((m.data ?? []).map((x) => [x.id, x as DuesMember]));
     const endYm = toDate ? toDate.slice(0, 7) : dateToYm(new Date());
+    const subs = (s.data ?? []).map((sub) => ({ ...sub, monthly_amount: Number(sub.monthly_amount) }));
+    const txns = (t.data ?? []).map((tx) => ({ ...tx, amount: Number(tx.amount) }));
 
-    return (s.data ?? []).map((sub) => {
-      const fund = fundMap.get(sub.fund_id);
-      const member = memberMap.get(sub.member_id);
-      const startYm = dateToYm(sub.start_date);
-      const isOneTime = !!fund?.is_one_time;
-      const monthlyAmount = Number(sub.monthly_amount);
-
-      let months: number;
-      let expected: number;
-      let paid: number;
-      if (isOneTime) {
-        months = 1;
-        expected = monthlyAmount;
-        paid = (t.data ?? [])
-          .filter((tx) => tx.member_id === sub.member_id && tx.fund_id === sub.fund_id)
-          .reduce((sum, tx) => sum + Number(tx.amount), 0);
-      } else {
-        const effectiveStart = startYm > endYm ? endYm : startYm;
-        months = monthsBetween(effectiveStart, endYm);
-        expected = months * monthlyAmount;
-        // A payment counts toward the month it's FOR (for_month), not the
-        // date it happened to be recorded on — mirrors Dues.tsx's fix.
-        paid = (t.data ?? [])
-          .filter((tx) => {
-            if (tx.member_id !== sub.member_id || tx.fund_id !== sub.fund_id) return false;
-            const coverageYm = tx.for_month ? dateToYm(tx.for_month) : dateToYm(tx.txn_date);
-            return coverageYm <= endYm && coverageYm >= startYm;
-          })
-          .reduce((sum, tx) => sum + Number(tx.amount), 0);
-      }
-
-      return {
-        member_no: member?.member_no ?? 0,
-        member_name: member?.full_name ?? "—",
-        fund_name: fund?.name ?? "—",
-        monthly_amount: isOneTime ? 0 : monthlyAmount,
-        months: isOneTime ? 0 : months,
-        joining_month: startYm,
-        expected,
-        paid,
-        due: isOneTime ? Math.max(expected - paid, 0) : expected - paid,
-      };
-    }).sort((a, b) => a.member_no - b.member_no || a.fund_name.localeCompare(b.fund_name));
+    return computeDueRows(subs, fundMap, memberMap, txns, endYm)
+      .map((r) => ({
+        member_no: r.memberNo,
+        member_name: r.memberName,
+        fund_name: r.fundName,
+        monthly_amount: r.monthly,
+        months: r.months,
+        joining_month: r.joiningYm,
+        expected: r.expected,
+        paid: r.paid,
+        due: r.due,
+      }))
+      .sort((a, b) => a.member_no - b.member_no || a.fund_name.localeCompare(b.fund_name));
   }
 
   async function buildMeetings(): Promise<MeetingExportRow[]> {
