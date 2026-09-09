@@ -32,4 +32,10 @@ jobs:
           JOIN public.meetings m ON m.id = ma.meeting_id
           JOIN public.members mem ON mem.id = ma.member_id
           WHERE m.meeting_no = 1 AND ma.is_present ORDER BY mem.full_name;
+
+          \echo '=== accounts and roles ==='
+          SELECT p.email, p.full_name, p.is_active, p.created_at,
+                 (SELECT array_agg(r.role ORDER BY r.role) FROM public.user_roles r WHERE r.user_id = p.user_id) AS roles
+          FROM public.admin_profiles p
+          ORDER BY p.created_at DESC;
           SQL
