@@ -17,6 +17,24 @@ jobs:
           fi
 
           psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 --no-psqlrc <<'SQL'
+          \echo '=== transactions.is_anonymous column ==='
+          SELECT data_type, is_nullable, column_default
+          FROM information_schema.columns
+          WHERE table_schema = 'public' AND table_name = 'transactions'
+            AND column_name = 'is_anonymous';
+
+          \echo '=== anonymous transaction counts ==='
+          SELECT count(*) AS total,
+                 count(*) FILTER (WHERE is_anonymous) AS anonymous
+          FROM public.transactions;
+
+          \echo '=== handle_new_user handles super_admin ==='
+          SELECT position('super_admin' IN prosrc) > 0 AS has_super_admin_branch,
+                 position('viewer' IN prosrc) > 0 AS has_viewer_branch
+          FROM pg_proc p
+          JOIN pg_namespace n ON n.oid = p.pronamespace
+          WHERE n.nspname = 'private' AND p.proname = 'handle_new_user';
+
           \echo '=== meetings totals ==='
           SELECT (SELECT count(*) FROM public.meetings) meetings,
                  (SELECT count(*) FROM public.meeting_agenda_items) agenda,
