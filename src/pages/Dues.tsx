@@ -31,7 +31,7 @@ type Subscription = {
   end_date: string | null;
   is_active: boolean;
 };
-type Txn = { member_id: string | null; fund_id: string; amount: number; txn_date: string };
+type Txn = { member_id: string | null; fund_id: string; amount: number; txn_date: string; for_month: string | null };
 
 const ALL = "all";
 
@@ -79,7 +79,7 @@ export default function Dues() {
       supabase.from("funds").select("id,name,code,is_one_time").order("sort_order"),
       supabase.from("members").select("id,full_name,member_no,is_active").order("member_no"),
       supabase.from("member_fund_subscriptions").select("*").eq("is_active", true),
-      supabase.from("transactions").select("member_id,fund_id,amount,txn_date"),
+      supabase.from("transactions").select("member_id,fund_id,amount,txn_date,for_month"),
     ]);
     const err = fRes.error || mRes.error || sRes.error || tRes.error;
     if (err) toast({ title: "Failed to load", description: safeErrorMessage(err), variant: "destructive" });
@@ -116,14 +116,17 @@ export default function Dues() {
           const effectiveStart = startYm > endMonth ? endMonth : startYm;
           months = monthsBetween(effectiveStart, endMonth);
           expected = months * s.monthly_amount;
+          // A payment counts toward the month it's FOR (for_month), not the
+          // date it happened to be recorded on (txn_date) — historical
+          // payments are frequently bulk-entered long after the month they
+          // cover, which previously made an earlier cutoff wrongly exclude
+          // them. Falls back to txn_date only when for_month isn't set.
           paid = txns
-            .filter(
-              (t) =>
-                t.member_id === s.member_id &&
-                t.fund_id === s.fund_id &&
-                dateToYm(t.txn_date) <= endMonth &&
-                dateToYm(t.txn_date) >= startYm
-            )
+            .filter((t) => {
+              if (t.member_id !== s.member_id || t.fund_id !== s.fund_id) return false;
+              const coverageYm = t.for_month ? dateToYm(t.for_month) : dateToYm(t.txn_date);
+              return coverageYm <= endMonth && coverageYm >= startYm;
+            })
             .reduce((sum, t) => sum + t.amount, 0);
         }
         const rawDue = expected - paid;

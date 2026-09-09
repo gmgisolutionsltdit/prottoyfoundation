@@ -38,19 +38,4 @@ jobs:
                  (SELECT array_agg(r.role ORDER BY r.role) FROM public.user_roles r WHERE r.user_id = p.user_id) AS roles
           FROM public.admin_profiles p
           ORDER BY p.created_at DESC;
-
-          \echo '=== Md Nurullah subscriptions ==='
-          SELECT f.name AS fund, s.monthly_amount, s.start_date, s.is_active
-          FROM public.member_fund_subscriptions s
-          JOIN public.members m ON m.id = s.member_id
-          JOIN public.funds f ON f.id = s.fund_id
-          WHERE m.full_name = 'Md Nurullah';
-
-          \echo '=== Md Nurullah monthly-fund transactions: txn_date vs for_month ==='
-          SELECT f.name AS fund, t.txn_date, t.for_month, t.amount
-          FROM public.transactions t
-          JOIN public.members m ON m.id = t.member_id
-          JOIN public.funds f ON f.id = t.fund_id
-          WHERE m.full_name = 'Md Nurullah' AND f.is_one_time = false
-          ORDER BY t.for_month;
           SQL

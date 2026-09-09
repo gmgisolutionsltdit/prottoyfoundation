@@ -152,7 +152,7 @@ export default function DataExport() {
       supabase.from("funds").select("id,name,is_one_time"),
       supabase.from("members").select("id,full_name,member_no"),
       supabase.from("member_fund_subscriptions").select("id,member_id,fund_id,monthly_amount,start_date").eq("is_active", true),
-      supabase.from("transactions").select("member_id,fund_id,amount,txn_date").not("member_id", "is", null),
+      supabase.from("transactions").select("member_id,fund_id,amount,txn_date,for_month").not("member_id", "is", null),
     ]);
     if (f.error) throw f.error;
     const fundMap = new Map((f.data ?? []).map((x) => [x.id, x]));
@@ -179,10 +179,14 @@ export default function DataExport() {
         const effectiveStart = startYm > endYm ? endYm : startYm;
         months = monthsBetween(effectiveStart, endYm);
         expected = months * monthlyAmount;
+        // A payment counts toward the month it's FOR (for_month), not the
+        // date it happened to be recorded on — mirrors Dues.tsx's fix.
         paid = (t.data ?? [])
-          .filter((tx) =>
-            tx.member_id === sub.member_id && tx.fund_id === sub.fund_id &&
-            dateToYm(tx.txn_date) <= endYm && dateToYm(tx.txn_date) >= startYm)
+          .filter((tx) => {
+            if (tx.member_id !== sub.member_id || tx.fund_id !== sub.fund_id) return false;
+            const coverageYm = tx.for_month ? dateToYm(tx.for_month) : dateToYm(tx.txn_date);
+            return coverageYm <= endYm && coverageYm >= startYm;
+          })
           .reduce((sum, tx) => sum + Number(tx.amount), 0);
       }
 
