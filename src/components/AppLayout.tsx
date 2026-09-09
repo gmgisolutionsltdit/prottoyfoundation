@@ -18,6 +18,8 @@ import {
   FileSpreadsheet,
   Menu,
   CalendarClock,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -33,6 +35,8 @@ const navItems = [
   { to: "/export", label: "Export", icon: FileSpreadsheet },
   { to: "/blood-donors", label: "Blood Donors", icon: Droplet },
 ];
+
+const SIDEBAR_COLLAPSED_KEY = "pf-sidebar-collapsed";
 
 const linkClass = ({ isActive }: { isActive: boolean }) =>
   cn(
@@ -82,6 +86,26 @@ export function AppLayout({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+  // Each page renders its own AppLayout, so navigating remounts this component
+  // — the collapsed choice has to be persisted to survive a page change.
+  const [desktopCollapsed, setDesktopCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
+
+  const toggleDesktopSidebar = () =>
+    setDesktopCollapsed((collapsed) => {
+      const next = !collapsed;
+      try {
+        localStorage.setItem(SIDEBAR_COLLAPSED_KEY, next ? "1" : "0");
+      } catch {
+        // A blocked/unavailable localStorage just means the choice won't stick.
+      }
+      return next;
+    });
 
   const handleSignOut = async () => {
     await signOut();
@@ -111,13 +135,33 @@ export function AppLayout({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex min-h-screen bg-muted/30">
-      <aside className="hidden w-60 flex-col border-r bg-card md:flex">
-        {brand}
-        <SidebarNav />
-        {footer}
-      </aside>
+      {!desktopCollapsed && (
+        <aside className="hidden w-60 shrink-0 flex-col border-r bg-card md:flex">
+          {brand}
+          <SidebarNav />
+          {footer}
+        </aside>
+      )}
 
-      <main className="flex-1 overflow-auto">
+      <main className="min-w-0 flex-1 overflow-auto">
+        <div className="hidden items-center gap-2 border-b bg-card p-2 md:flex">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleDesktopSidebar}
+            aria-label={desktopCollapsed ? "Show navigation menu" : "Hide navigation menu"}
+            title={desktopCollapsed ? "Show menu" : "Hide menu"}
+          >
+            {desktopCollapsed ? <PanelLeftOpen className="h-5 w-5" /> : <PanelLeftClose className="h-5 w-5" />}
+          </Button>
+          {desktopCollapsed && (
+            <>
+              <img src="/logo.png" alt="Prottoy Foundation" className="h-7 w-7 rounded-full" />
+              <h1 className="font-semibold">Prottoy Foundation</h1>
+            </>
+          )}
+        </div>
+
         <div className="md:hidden flex items-center justify-between border-b bg-card p-3">
           <div className="flex items-center gap-2">
             <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
