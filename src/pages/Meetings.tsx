@@ -486,10 +486,10 @@ export default function Meetings() {
             </div>
 
             <div className="grid gap-2">
-              <Label>Attendance</Label>
+              <Label htmlFor="mtg-attendance">Attendance</Label>
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button type="button" variant="outline" className="justify-between font-normal">
+                  <Button id="mtg-attendance" type="button" variant="outline" className="justify-between font-normal">
                     <span className="truncate text-left">
                       {attendeeIds.size === 0 ? "Select attendees" : `${attendeeIds.size} member(s) selected`}
                     </span>
@@ -518,7 +518,7 @@ export default function Meetings() {
 
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label>Agenda &amp; Decision</Label>
+                <Label id="mtg-agenda-label">Agenda &amp; Decision</Label>
                 <Button type="button" variant="outline" size="sm" onClick={addAgendaRow}>
                   <Plus className="mr-1 h-3.5 w-3.5" /> Add item
                 </Button>
@@ -530,6 +530,7 @@ export default function Meetings() {
                       <span className="text-xs font-medium text-muted-foreground">Item {i + 1}</span>
                       {form.agenda_items.length > 1 && (
                         <Button type="button" variant="ghost" size="icon" className="h-6 w-6"
+                          aria-label={`Remove agenda item ${i + 1}`}
                           onClick={() => removeAgendaRow(i)}>
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>
@@ -546,7 +547,7 @@ export default function Meetings() {
 
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label>Planned for next meeting</Label>
+                <Label id="mtg-next-agenda-label">Planned for next meeting</Label>
                 <Button type="button" variant="outline" size="sm" onClick={addNextAgendaRow}>
                   <Plus className="mr-1 h-3.5 w-3.5" /> Add item
                 </Button>
@@ -557,6 +558,7 @@ export default function Meetings() {
                     <Input value={item} onChange={(e) => updateNextAgendaRow(i, e.target.value)} />
                     {form.next_agenda_items.length > 1 && (
                       <Button type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0"
+                        aria-label={`Remove next-meeting item ${i + 1}`}
                         onClick={() => removeNextAgendaRow(i)}>
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
@@ -567,11 +569,11 @@ export default function Meetings() {
             </div>
 
             <div className="grid gap-2">
-              <Label>Next meeting schedule</Label>
-              <div className="grid grid-cols-2 gap-3">
-                <Input type="date" value={form.next_meeting_date}
+              <Label id="mtg-next-schedule-label">Next meeting schedule</Label>
+              <div className="grid grid-cols-2 gap-3" role="group" aria-labelledby="mtg-next-schedule-label">
+                <Input type="date" value={form.next_meeting_date} aria-label="Next meeting date"
                   onChange={(e) => setForm({ ...form, next_meeting_date: e.target.value })} />
-                <Input placeholder="Duration" value={form.next_meeting_duration}
+                <Input placeholder="Duration" value={form.next_meeting_duration} aria-label="Next meeting duration"
                   onChange={(e) => setForm({ ...form, next_meeting_duration: e.target.value })} />
               </div>
               <Input placeholder="Location" value={form.next_meeting_location}

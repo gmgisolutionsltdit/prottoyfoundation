@@ -203,7 +203,7 @@ export default function MemberTypes() {
                             <span className="text-xs text-muted-foreground">View only</span>
                           ) : (
                             <>
-                              <Button variant="ghost" size="icon" onClick={() => openEdit(r)}><Pencil className="h-4 w-4" /></Button>
+                              <Button variant="ghost" size="icon" title="Edit" aria-label="Edit" onClick={() => openEdit(r)}><Pencil className="h-4 w-4" /></Button>
                               <Button variant="ghost" size="icon" title={r.is_active ? "Deactivate" : "Activate"} onClick={() => toggleActive(r)}><Power className="h-4 w-4" /></Button>
                               <Button variant="ghost" size="icon" title="Delete" onClick={() => setDeleteTarget(r)}><Trash2 className="h-4 w-4" /></Button>
                             </>

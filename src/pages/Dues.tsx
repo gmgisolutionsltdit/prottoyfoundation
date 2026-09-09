@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { TablePagination } from "@/components/TablePagination";
 import { TableSkeletonRows } from "@/components/TableSkeleton";
+import { SortableTableHead } from "@/components/SortableTableHead";
 import { EmptyState, EmptyStateRow } from "@/components/EmptyState";
 import { useUrlParam, useUrlNumberParam } from "@/hooks/useUrlParam";
 import { formatBDT } from "@/lib/format";
@@ -119,6 +120,25 @@ export default function Dues() {
     return ids;
   }, [rows]);
 
+  // Click-to-sort headers (item 21) — complements the Sort by dropdown
+  // above, same sortBy/sortDir state. "Status" has no dedicated column
+  // header (it's a derived badge, not a field), so it stays dropdown-only.
+  const sortDefaults: Record<typeof sortBy, "asc" | "desc"> = {
+    member: "asc",
+    memberNo: "asc",
+    amount: "desc",
+    date: "desc",
+    status: "desc",
+    fund: "asc",
+  };
+  function handleSortClick(column: typeof sortBy) {
+    if (sortBy === column) setSortDir(sortDir === "asc" ? "desc" : "asc");
+    else {
+      setSortBy(column);
+      setSortDir(sortDefaults[column]);
+    }
+  }
+
   const totalPages = Math.max(1, Math.ceil(pageMemberIds.length / pageSize));
   const currentPage = Math.min(page, totalPages);
 
@@ -220,9 +240,9 @@ export default function Dues() {
           <CardContent>
             <div className="grid gap-3 sm:grid-cols-4">
               <div className="grid gap-2">
-                <Label>Member</Label>
+                <Label htmlFor="dues-member">Member</Label>
                 <Select value={memberFilter} onValueChange={setMemberFilter}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger id="dues-member"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value={ALL}>All members</SelectItem>
                     {members.map((m) => (
@@ -234,10 +254,10 @@ export default function Dues() {
                 </Select>
               </div>
               <div className="grid gap-2">
-                <Label>Fund</Label>
+                <Label htmlFor="dues-fund">Fund</Label>
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button type="button" variant="outline" className="justify-between font-normal">
+                    <Button id="dues-fund" type="button" variant="outline" className="justify-between font-normal">
                       <span className="truncate text-left">
                         {fundFilters.size === 0
                           ? "All funds"
@@ -291,13 +311,13 @@ export default function Dues() {
                 />
               </div>
               <div className="grid gap-2">
-                <Label>Sort by</Label>
+                <Label htmlFor="dues-sort">Sort by</Label>
                 <Select value={`${sortBy}:${sortDir}`} onValueChange={(v) => {
                   const [by, dir] = v.split(":");
                   setSortBy(by as typeof sortBy);
                   setSortDir(dir as "asc" | "desc");
                 }}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger id="dues-sort"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="member:asc">Member — A→Z</SelectItem>
                     <SelectItem value="member:desc">Member — Z→A</SelectItem>
@@ -401,17 +421,17 @@ export default function Dues() {
               <Table className="min-w-max">
                 <TableHeader className="sticky top-0 z-10 bg-background">
                   <TableRow>
-                    <TableHead className="w-20">Member Number</TableHead>
-                    <TableHead>Member Name</TableHead>
-                    <TableHead>Fund Name</TableHead>
-                    <TableHead>Joining Month</TableHead>
+                    <SortableTableHead active={sortBy === "memberNo"} direction={sortDir} onClick={() => handleSortClick("memberNo")} className="w-20">Member Number</SortableTableHead>
+                    <SortableTableHead active={sortBy === "member"} direction={sortDir} onClick={() => handleSortClick("member")}>Member Name</SortableTableHead>
+                    <SortableTableHead active={sortBy === "fund"} direction={sortDir} onClick={() => handleSortClick("fund")}>Fund Name</SortableTableHead>
+                    <SortableTableHead active={sortBy === "date"} direction={sortDir} onClick={() => handleSortClick("date")}>Joining Month</SortableTableHead>
                     <TableHead className="text-right">Monthly Amount</TableHead>
                     <TableHead className="text-right">Total Month</TableHead>
                     <TableHead className="text-right">Expected Amount</TableHead>
                     <TableHead className="text-right">Paid Month</TableHead>
                     <TableHead className="text-right">Paid Amount</TableHead>
                     <TableHead className="text-right">Due Month</TableHead>
-                    <TableHead className="text-right">Due Amount</TableHead>
+                    <SortableTableHead active={sortBy === "amount"} direction={sortDir} onClick={() => handleSortClick("amount")} className="text-right">Due Amount</SortableTableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

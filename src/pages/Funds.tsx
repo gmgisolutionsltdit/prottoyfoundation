@@ -305,18 +305,18 @@ export default function Funds() {
             </div>
             <div className="flex items-center justify-between rounded-md border p-3">
               <div>
-                <Label>Active</Label>
+                <Label htmlFor="fund-active">Active</Label>
                 <p className="text-xs text-muted-foreground">Inactive funds are hidden from new entries.</p>
               </div>
-              <Switch checked={form.is_active}
+              <Switch id="fund-active" checked={form.is_active}
                 onCheckedChange={(v) => setForm({ ...form, is_active: v })} />
             </div>
             <div className="flex items-center justify-between rounded-md border p-3">
               <div>
-                <Label>One-time payment</Label>
+                <Label htmlFor="fund-one-time">One-time payment</Label>
                 <p className="text-xs text-muted-foreground">Charged once (e.g. registration fee). No monthly dues after the first payment.</p>
               </div>
-              <Switch checked={form.is_one_time}
+              <Switch id="fund-one-time" checked={form.is_one_time}
                 onCheckedChange={(v) => setForm({ ...form, is_one_time: v })} />
             </div>
 

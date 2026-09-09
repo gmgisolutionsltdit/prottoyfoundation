@@ -712,10 +712,10 @@ export default function Members() {
               </div>
             </div>
             <div className="grid gap-2">
-              <Label>Member types</Label>
+              <Label htmlFor="mem-types">Member types</Label>
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button type="button" variant="outline" className="justify-between font-normal">
+                  <Button id="mem-types" type="button" variant="outline" className="justify-between font-normal">
                     <span className="truncate text-left">
                       {selectedTypeIds.size === 0
                         ? "Select types"

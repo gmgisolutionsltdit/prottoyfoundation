@@ -429,9 +429,9 @@ export default function Expenses() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div className="grid gap-2">
-                <Label>Fund *</Label>
+                <Label htmlFor="exp-fund">Fund *</Label>
                 <Select value={form.fund_id} onValueChange={(v) => setForm({ ...form, fund_id: v })}>
-                  <SelectTrigger><SelectValue placeholder="Select fund" /></SelectTrigger>
+                  <SelectTrigger id="exp-fund"><SelectValue placeholder="Select fund" /></SelectTrigger>
                   <SelectContent>
                     {funds.map((f) => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}
                   </SelectContent>
@@ -482,6 +482,7 @@ export default function Expenses() {
                     <AttachmentViewLink stored={existingAttachment}>View</AttachmentViewLink>
                   )}
                   <Button type="button" variant="ghost" size="icon" className="h-6 w-6"
+                    aria-label="Remove attachment"
                     onClick={() => { setAttachmentFile(null); setExistingAttachment(null); }}>
                     <X className="h-3 w-3" />
                   </Button>

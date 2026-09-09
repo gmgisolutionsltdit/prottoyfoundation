@@ -23,6 +23,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { TablePagination } from "@/components/TablePagination";
+import { SortableTableHead } from "@/components/SortableTableHead";
 import { TableSkeletonRows } from "@/components/TableSkeleton";
 import { EmptyState, EmptyStateRow } from "@/components/EmptyState";
 import { Switch } from "@/components/ui/switch";
@@ -226,6 +227,23 @@ export default function Income() {
   useEffect(() => {
     setPage(1);
   }, [search, fundFilter, memberFilter, monthFilter, fromDate, toDate, sortBy, sortDir, pageSize, setPage]);
+
+  // Click-to-sort headers (item 21) — same sortBy/sortDir state as the
+  // dropdown above, just a second way to change it. Each column has the
+  // same "first click" direction the dropdown lists first for it.
+  const sortDefaults: Record<typeof sortBy, "asc" | "desc"> = {
+    date: "desc",
+    for_month: "desc",
+    amount: "desc",
+    member: "asc",
+  };
+  function handleSortClick(column: typeof sortBy) {
+    if (sortBy === column) setSortDir(sortDir === "asc" ? "desc" : "asc");
+    else {
+      setSortBy(column);
+      setSortDir(sortDefaults[column]);
+    }
+  }
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const currentPage = Math.min(page, totalPages);
@@ -579,15 +597,15 @@ export default function Income() {
               <Table>
                 <TableHeader className="sticky top-0 z-10 bg-card">
                   <TableRow>
-                    <TableHead>Date</TableHead>
+                    <SortableTableHead active={sortBy === "date"} direction={sortDir} onClick={() => handleSortClick("date")}>Date</SortableTableHead>
                     <TableHead>Receipt</TableHead>
-                    <TableHead>Donor / Member</TableHead>
+                    <SortableTableHead active={sortBy === "member"} direction={sortDir} onClick={() => handleSortClick("member")}>Donor / Member</SortableTableHead>
                     <TableHead>Anonymous</TableHead>
                     <TableHead>Fund</TableHead>
                     <TableHead>Method</TableHead>
                     <TableHead>Attachment</TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
-                    <TableHead>For Month</TableHead>
+                    <SortableTableHead active={sortBy === "amount"} direction={sortDir} onClick={() => handleSortClick("amount")} className="text-right">Amount</SortableTableHead>
+                    <SortableTableHead active={sortBy === "for_month"} direction={sortDir} onClick={() => handleSortClick("for_month")}>For Month</SortableTableHead>
                     <TableHead className="text-right">Actions</TableHead>
 
                   </TableRow>
@@ -688,9 +706,9 @@ export default function Income() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div className="grid gap-2">
-                <Label>Fund *</Label>
+                <Label htmlFor="inc-fund">Fund *</Label>
                 <Select value={form.fund_id} onValueChange={(v) => setForm({ ...form, fund_id: v })}>
-                  <SelectTrigger><SelectValue placeholder="Select fund" /></SelectTrigger>
+                  <SelectTrigger id="inc-fund"><SelectValue placeholder="Select fund" /></SelectTrigger>
                   <SelectContent>
                     {funds.map((f) => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}
                   </SelectContent>
@@ -704,10 +722,10 @@ export default function Income() {
             </div>
 
             <div className="grid gap-2">
-              <Label>Member (optional)</Label>
+              <Label htmlFor="inc-member">Member (optional)</Label>
               <Select value={form.member_id || "none"}
                 onValueChange={(v) => v === "none" ? setForm({ ...form, member_id: "" }) : onMemberSelect(v)}>
-                <SelectTrigger><SelectValue placeholder="Select member" /></SelectTrigger>
+                <SelectTrigger id="inc-member"><SelectValue placeholder="Select member" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">— External donor —</SelectItem>
                   {members.map((m) => (
@@ -735,10 +753,10 @@ export default function Income() {
 
               </div>
               <div className="grid gap-2">
-                <Label>Payment method *</Label>
+                <Label htmlFor="inc-method">Payment method *</Label>
                 <Select value={form.payment_method}
                   onValueChange={(v) => setForm({ ...form, payment_method: v as PaymentMethod })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger id="inc-method"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {PAYMENT_METHODS.map((p) => (
                       <SelectItem key={p} value={p}>{PAYMENT_LABEL[p]}</SelectItem>
@@ -756,12 +774,14 @@ export default function Income() {
               </div>
             ) : (
               <div className="grid gap-2">
-                <Label>For months (optional)</Label>
-                <div className="grid grid-cols-2 gap-3">
+                <Label id="inc-months-label">For months (optional)</Label>
+                <div className="grid grid-cols-2 gap-3" role="group" aria-labelledby="inc-months-label">
                   <Input type="month" value={form.from_month}
+                    aria-label="From month"
                     placeholder="From"
                     onChange={(e) => setForm({ ...form, from_month: e.target.value })} />
                   <Input type="month" value={form.to_month}
+                    aria-label="To month"
                     placeholder="To"
                     onChange={(e) => setForm({ ...form, to_month: e.target.value })} />
                 </div>
@@ -795,6 +815,7 @@ export default function Income() {
                     <AttachmentViewLink stored={existingAttachment}>View</AttachmentViewLink>
                   )}
                   <Button type="button" variant="ghost" size="icon" className="h-6 w-6"
+                    aria-label="Remove attachment"
                     onClick={() => { setAttachmentFile(null); setExistingAttachment(null); }}>
                     <X className="h-3 w-3" />
                   </Button>
@@ -804,20 +825,20 @@ export default function Income() {
 
             <div className="flex items-center justify-between rounded-md border p-3">
               <div>
-                <Label>Anonymous donation</Label>
+                <Label htmlFor="inc-anonymous">Anonymous donation</Label>
                 <p className="text-xs text-muted-foreground">Hides the donor's name in the Income list</p>
               </div>
-              <Switch checked={form.is_anonymous}
+              <Switch id="inc-anonymous" checked={form.is_anonymous}
                 onCheckedChange={(v) => setForm({ ...form, is_anonymous: v })} />
             </div>
 
             {!editing && (
               <div className="flex items-center justify-between rounded-md border p-3">
                 <div>
-                  <Label>Issue receipt</Label>
+                  <Label htmlFor="inc-issue-receipt">Issue receipt</Label>
                   <p className="text-xs text-muted-foreground">Auto-numbered as PF-YYYY-####</p>
                 </div>
-                <Switch checked={form.issue_receipt}
+                <Switch id="inc-issue-receipt" checked={form.issue_receipt}
                   onCheckedChange={(v) => setForm({ ...form, issue_receipt: v })} />
               </div>
             )}

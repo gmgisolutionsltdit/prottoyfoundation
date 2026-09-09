@@ -327,13 +327,13 @@ export default function BloodDonors() {
           <form onSubmit={handleSubmit} className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label>SL</Label>
-                <Input value={form.sl} onChange={(e) => setForm({ ...form, sl: e.target.value })} placeholder="auto" />
+                <Label htmlFor="bd-sl">SL</Label>
+                <Input id="bd-sl" value={form.sl} onChange={(e) => setForm({ ...form, sl: e.target.value })} placeholder="auto" />
               </div>
               <div>
-                <Label>Blood Group *</Label>
+                <Label htmlFor="bd-bg">Blood Group *</Label>
                 <Select value={form.blood_group} onValueChange={(v) => setForm({ ...form, blood_group: v as BG })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger id="bd-bg"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {BLOOD_GROUPS.map((g) => <SelectItem key={g} value={g}>{g}</SelectItem>)}
                   </SelectContent>
@@ -341,38 +341,38 @@ export default function BloodDonors() {
               </div>
             </div>
             <div>
-              <Label>Name *</Label>
-              <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+              <Label htmlFor="bd-name">Name *</Label>
+              <Input id="bd-name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
             </div>
             <div>
-              <Label>Mobile</Label>
-              <Input value={form.mobile} onChange={(e) => setForm({ ...form, mobile: e.target.value })} />
+              <Label htmlFor="bd-mobile">Mobile</Label>
+              <Input id="bd-mobile" value={form.mobile} onChange={(e) => setForm({ ...form, mobile: e.target.value })} />
             </div>
             <div>
-              <Label>Present Address</Label>
-              <Input value={form.present_address} onChange={(e) => setForm({ ...form, present_address: e.target.value })} />
+              <Label htmlFor="bd-present-address">Present Address</Label>
+              <Input id="bd-present-address" value={form.present_address} onChange={(e) => setForm({ ...form, present_address: e.target.value })} />
             </div>
             <div>
-              <Label>Permanent Address</Label>
-              <Input value={form.permanent_address} onChange={(e) => setForm({ ...form, permanent_address: e.target.value })} />
+              <Label htmlFor="bd-permanent-address">Permanent Address</Label>
+              <Input id="bd-permanent-address" value={form.permanent_address} onChange={(e) => setForm({ ...form, permanent_address: e.target.value })} />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label>Reference Person</Label>
-                <Input value={form.reference_person} onChange={(e) => setForm({ ...form, reference_person: e.target.value })} />
+                <Label htmlFor="bd-ref-person">Reference Person</Label>
+                <Input id="bd-ref-person" value={form.reference_person} onChange={(e) => setForm({ ...form, reference_person: e.target.value })} />
               </div>
               <div>
-                <Label>Reference Mobile</Label>
-                <Input value={form.reference_mobile} onChange={(e) => setForm({ ...form, reference_mobile: e.target.value })} />
+                <Label htmlFor="bd-ref-mobile">Reference Mobile</Label>
+                <Input id="bd-ref-mobile" value={form.reference_mobile} onChange={(e) => setForm({ ...form, reference_mobile: e.target.value })} />
               </div>
             </div>
             <div>
-              <Label>Last Donation Date</Label>
-              <Input type="date" value={form.last_donation_date} onChange={(e) => setForm({ ...form, last_donation_date: e.target.value })} />
+              <Label htmlFor="bd-last-donation">Last Donation Date</Label>
+              <Input id="bd-last-donation" type="date" value={form.last_donation_date} onChange={(e) => setForm({ ...form, last_donation_date: e.target.value })} />
             </div>
             <div>
-              <Label>Notes</Label>
-              <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+              <Label htmlFor="bd-notes">Notes</Label>
+              <Textarea id="bd-notes" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
