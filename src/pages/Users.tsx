@@ -17,6 +17,9 @@ import {
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import { Loader2, MoreVertical, Plus, ShieldCheck, Eye, EyeOff } from "lucide-react";
 import { safeErrorMessage } from "@/lib/errors";
@@ -40,6 +43,7 @@ const createSchema = z.object({
     .regex(/^[a-z0-9_.-]+$/, "Use letters, numbers, dot, dash, or underscore"),
   full_name: z.string().trim().min(1, "Name required").max(200),
   password: z.string().min(8, "At least 8 characters").max(72),
+  role: z.enum(["admin", "viewer"]),
 });
 
 interface AdminRow {
@@ -61,6 +65,7 @@ export default function UsersPage() {
   const [username, setUsername] = useState("");
   const [fullName, setFullName] = useState("");
   const [password, setPassword] = useState("");
+  const [role, setRole] = useState<"admin" | "viewer">("admin");
   const [showCreatePassword, setShowCreatePassword] = useState(false);
 
   const [resetTarget, setResetTarget] = useState<AdminRow | null>(null);
@@ -93,13 +98,14 @@ export default function UsersPage() {
     // Section 12.1 — reset any open modal state when this route mounts.
     setCreateOpen(false);
     setResetTarget(null);
+    setRole("admin");
 
     load();
   }, []);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    const parsed = createSchema.safeParse({ username, full_name: fullName, password });
+    const parsed = createSchema.safeParse({ username, full_name: fullName, password, role });
     if (!parsed.success) {
       toast({ title: "Invalid input", description: parsed.error.errors[0].message, variant: "destructive" });
       return;
@@ -115,8 +121,11 @@ export default function UsersPage() {
       });
       return;
     }
-    toast({ title: "Admin created", description: `${parsed.data.username} can now sign in.` });
-    setUsername(""); setFullName(""); setPassword("");
+    toast({
+      title: parsed.data.role === "viewer" ? "Viewer account created" : "Admin created",
+      description: `${parsed.data.username} can now sign in.`,
+    });
+    setUsername(""); setFullName(""); setPassword(""); setRole("admin");
     setShowCreatePassword(false);
     setCreateOpen(false);
     load();
@@ -160,17 +169,17 @@ export default function UsersPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-semibold">Users</h1>
-            <p className="text-sm text-muted-foreground">Create and manage admin accounts.</p>
+            <p className="text-sm text-muted-foreground">Create and manage admin and viewer accounts.</p>
           </div>
           <Dialog open={createOpen} onOpenChange={setCreateOpen}>
             <DialogTrigger asChild>
-              <Button><Plus className="mr-2 h-4 w-4" />Create admin</Button>
+              <Button><Plus className="mr-2 h-4 w-4" />Create account</Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Create admin account</DialogTitle>
+                <DialogTitle>Create account</DialogTitle>
                 <DialogDescription>
-                  Share the username and password with the new admin. They can sign in directly — no email verification required.
+                  Share the username and password with the new account. They can sign in directly — no email verification required.
                 </DialogDescription>
               </DialogHeader>
               <form onSubmit={handleCreate} className="space-y-4">
@@ -187,6 +196,16 @@ export default function UsersPage() {
                     autoComplete="username"
                     required
                   />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="ca-role">Role</Label>
+                  <Select value={role} onValueChange={(v) => setRole(v as "admin" | "viewer")}>
+                    <SelectTrigger id="ca-role"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="admin">Admin — full access</SelectItem>
+                      <SelectItem value="viewer">Viewer — read only</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="ca-password">Password (min 8 chars)</Label>
@@ -222,7 +241,7 @@ export default function UsersPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>All admins</CardTitle>
+            <CardTitle>All accounts</CardTitle>
             <CardDescription>{rows.length} total</CardDescription>
           </CardHeader>
           <CardContent>
@@ -247,6 +266,7 @@ export default function UsersPage() {
                 <TableBody>
                   {rows.map((r) => {
                     const isSuper = r.roles.includes("super_admin");
+                    const isViewerRow = !isSuper && !r.roles.includes("admin") && r.roles.includes("viewer");
                     const isSelf = r.user_id === currentUser?.id;
                     const uname = usernameToDisplay(r.email);
                     return (
@@ -256,6 +276,8 @@ export default function UsersPage() {
                         <TableCell>
                           {isSuper ? (
                             <Badge className="gap-1"><ShieldCheck className="h-3 w-3" />Super admin</Badge>
+                          ) : isViewerRow ? (
+                            <Badge variant="outline" className="gap-1"><Eye className="h-3 w-3" />Viewer</Badge>
                           ) : (
                             <Badge variant="secondary">Admin</Badge>
                           )}
@@ -292,14 +314,16 @@ export default function UsersPage() {
                                       Reactivate
                                     </DropdownMenuItem>
                                   )}
-                                  {isSuper ? (
-                                    <DropdownMenuItem onClick={() => doAction("demote", r.user_id)}>
-                                      Demote to admin
-                                    </DropdownMenuItem>
-                                  ) : (
-                                    <DropdownMenuItem onClick={() => doAction("promote", r.user_id)}>
-                                      Promote to super admin
-                                    </DropdownMenuItem>
+                                  {!isViewerRow && (
+                                    isSuper ? (
+                                      <DropdownMenuItem onClick={() => doAction("demote", r.user_id)}>
+                                        Demote to admin
+                                      </DropdownMenuItem>
+                                    ) : (
+                                      <DropdownMenuItem onClick={() => doAction("promote", r.user_id)}>
+                                        Promote to super admin
+                                      </DropdownMenuItem>
+                                    )
                                   )}
                                   <DropdownMenuSeparator />
                                   <DropdownMenuItem

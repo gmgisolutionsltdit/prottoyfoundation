@@ -92,7 +92,7 @@ interface Row extends Txn {
 }
 
 export default function Income() {
-  const { user } = useAuth();
+  const { user, isViewer } = useAuth();
   const { setDirty } = useUnsavedChanges();
   const [rows, setRows] = useState<Row[]>([]);
   const [funds, setFunds] = useState<Fund[]>([]);
@@ -373,9 +373,11 @@ export default function Income() {
               Record member contributions and donations. Receipts are auto-numbered.
             </p>
           </div>
-          <Button onClick={openCreate} disabled={funds.length === 0}>
-            <Plus className="h-4 w-4" /> New Income
-          </Button>
+          {!isViewer && (
+            <Button onClick={openCreate} disabled={funds.length === 0}>
+              <Plus className="h-4 w-4" /> New Income
+            </Button>
+          )}
         </div>
 
         <Card>
@@ -524,12 +526,18 @@ export default function Income() {
                       <TableCell className="text-right">
 
                         <div className="flex justify-end gap-1">
-                          <Button variant="ghost" size="icon" title="Edit" onClick={() => openEdit(r)}>
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" title="Delete" onClick={() => setDeleteTarget(r)}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          {isViewer ? (
+                            <span className="text-xs text-muted-foreground">View only</span>
+                          ) : (
+                            <>
+                              <Button variant="ghost" size="icon" title="Edit" onClick={() => openEdit(r)}>
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button variant="ghost" size="icon" title="Delete" onClick={() => setDeleteTarget(r)}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>

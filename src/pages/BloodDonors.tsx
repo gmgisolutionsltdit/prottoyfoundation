@@ -12,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { Plus, Search, Pencil, Trash2 } from "lucide-react";
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
 import { safeErrorMessage } from "@/lib/errors";
@@ -62,6 +63,7 @@ const bgColor: Record<BG, string> = {
 };
 
 export default function BloodDonors() {
+  const { isViewer } = useAuth();
   const [donors, setDonors] = useState<Donor[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -191,7 +193,7 @@ export default function BloodDonors() {
             <h1 className="text-2xl font-semibold tracking-tight">Blood Donors</h1>
             <p className="text-sm text-muted-foreground">Database of blood donors with contact and last donation info.</p>
           </div>
-          <Button onClick={openCreate}><Plus className="h-4 w-4" /> Add Donor</Button>
+          {!isViewer && <Button onClick={openCreate}><Plus className="h-4 w-4" /> Add Donor</Button>}
         </div>
 
         <Card>
@@ -263,12 +265,18 @@ export default function BloodDonors() {
                       <TableCell>{d.last_donation_date ?? "—"}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
-                          <Button variant="ghost" size="icon" title="Edit" onClick={() => openEdit(d)}>
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" title="Delete" onClick={() => setDeleteTarget(d)}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          {isViewer ? (
+                            <span className="text-xs text-muted-foreground">View only</span>
+                          ) : (
+                            <>
+                              <Button variant="ghost" size="icon" title="Edit" onClick={() => openEdit(d)}>
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button variant="ghost" size="icon" title="Delete" onClick={() => setDeleteTarget(d)}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>

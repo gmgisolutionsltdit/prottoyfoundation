@@ -13,6 +13,7 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -39,6 +40,7 @@ type FormValues = z.infer<typeof schema>;
 const empty: FormValues = { name: "", description: "", sort_order: 0 };
 
 export default function MemberTypes() {
+  const { isViewer } = useAuth();
   const [rows, setRows] = useState<MemberTypeRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -137,7 +139,7 @@ export default function MemberTypes() {
             <h1 className="text-2xl font-semibold tracking-tight">Member Types</h1>
             <p className="text-sm text-muted-foreground">Define the categories of membership.</p>
           </div>
-          <Button onClick={openCreate}><Plus className="h-4 w-4" /> Add Type</Button>
+          {!isViewer && <Button onClick={openCreate}><Plus className="h-4 w-4" /> Add Type</Button>}
         </div>
 
         <Card>
@@ -169,9 +171,15 @@ export default function MemberTypes() {
                       <TableCell>{r.is_active ? <Badge>Active</Badge> : <Badge variant="outline">Inactive</Badge>}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
-                          <Button variant="ghost" size="icon" onClick={() => openEdit(r)}><Pencil className="h-4 w-4" /></Button>
-                          <Button variant="ghost" size="icon" title={r.is_active ? "Deactivate" : "Activate"} onClick={() => toggleActive(r)}><Power className="h-4 w-4" /></Button>
-                          <Button variant="ghost" size="icon" title="Delete" onClick={() => setDeleteTarget(r)}><Trash2 className="h-4 w-4" /></Button>
+                          {isViewer ? (
+                            <span className="text-xs text-muted-foreground">View only</span>
+                          ) : (
+                            <>
+                              <Button variant="ghost" size="icon" onClick={() => openEdit(r)}><Pencil className="h-4 w-4" /></Button>
+                              <Button variant="ghost" size="icon" title={r.is_active ? "Deactivate" : "Activate"} onClick={() => toggleActive(r)}><Power className="h-4 w-4" /></Button>
+                              <Button variant="ghost" size="icon" title="Delete" onClick={() => setDeleteTarget(r)}><Trash2 className="h-4 w-4" /></Button>
+                            </>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>

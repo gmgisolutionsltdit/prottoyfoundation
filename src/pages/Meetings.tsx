@@ -23,6 +23,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { Plus, Trash2, Pencil, Users, ChevronDown, CalendarDays } from "lucide-react";
 import { formatDMY } from "@/lib/format";
 import { safeErrorMessage } from "@/lib/errors";
@@ -71,6 +72,7 @@ type MeetingDetail = {
 };
 
 export default function Meetings() {
+  const { isViewer } = useAuth();
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [details, setDetails] = useState<Map<string, MeetingDetail>>(new Map());
@@ -291,9 +293,11 @@ export default function Meetings() {
               Meeting history, agenda &amp; decisions, and attendance.
             </p>
           </div>
-          <Button onClick={openCreate}>
-            <Plus className="h-4 w-4" /> Add Meeting
-          </Button>
+          {!isViewer && (
+            <Button onClick={openCreate}>
+              <Plus className="h-4 w-4" /> Add Meeting
+            </Button>
+          )}
         </div>
 
         <Card>
@@ -386,15 +390,19 @@ export default function Meetings() {
                         </div>
                       </div>
 
-                      <Separator />
-                      <div className="flex justify-end gap-1">
-                        <Button variant="outline" size="sm" onClick={() => openEdit(m)}>
-                          <Pencil className="mr-2 h-3.5 w-3.5" /> Edit
-                        </Button>
-                        <Button variant="outline" size="sm" onClick={() => setDeleteTarget(m)}>
-                          <Trash2 className="mr-2 h-3.5 w-3.5" /> Delete
-                        </Button>
-                      </div>
+                      {!isViewer && (
+                        <>
+                          <Separator />
+                          <div className="flex justify-end gap-1">
+                            <Button variant="outline" size="sm" onClick={() => openEdit(m)}>
+                              <Pencil className="mr-2 h-3.5 w-3.5" /> Edit
+                            </Button>
+                            <Button variant="outline" size="sm" onClick={() => setDeleteTarget(m)}>
+                              <Trash2 className="mr-2 h-3.5 w-3.5" /> Delete
+                            </Button>
+                          </div>
+                        </>
+                      )}
                     </AccordionContent>
                   </AccordionItem>
                 );

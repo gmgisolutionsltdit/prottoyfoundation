@@ -51,6 +51,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { Plus, Search, Pencil, Power, Wallet, Trash2, ChevronDown } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -89,6 +90,7 @@ const emptyForm: FormValues = {
 };
 
 export default function Members() {
+  const { isViewer } = useAuth();
   const [members, setMembers] = useState<Member[]>([]);
   const [types, setTypes] = useState<MemberType[]>([]);
   const [loading, setLoading] = useState(true);
@@ -316,9 +318,11 @@ export default function Members() {
               Manage foundation members, their types, and fund subscriptions.
             </p>
           </div>
-          <Button onClick={openCreate}>
-            <Plus className="h-4 w-4" /> Add Member
-          </Button>
+          {!isViewer && (
+            <Button onClick={openCreate}>
+              <Plus className="h-4 w-4" /> Add Member
+            </Button>
+          )}
         </div>
 
         <Card>
@@ -429,18 +433,24 @@ export default function Members() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
-                          <Button variant="ghost" size="icon" title="Fund subscriptions" onClick={() => setSubsTarget(m)}>
-                            <Wallet className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" title="Edit" onClick={() => openEdit(m)}>
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" title="Toggle active" onClick={() => setToggleTarget(m)}>
-                            <Power className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" title="Delete" onClick={() => setDeleteTarget(m)}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          {isViewer ? (
+                            <span className="text-xs text-muted-foreground">View only</span>
+                          ) : (
+                            <>
+                              <Button variant="ghost" size="icon" title="Fund subscriptions" onClick={() => setSubsTarget(m)}>
+                                <Wallet className="h-4 w-4" />
+                              </Button>
+                              <Button variant="ghost" size="icon" title="Edit" onClick={() => openEdit(m)}>
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button variant="ghost" size="icon" title="Toggle active" onClick={() => setToggleTarget(m)}>
+                                <Power className="h-4 w-4" />
+                              </Button>
+                              <Button variant="ghost" size="icon" title="Delete" onClick={() => setDeleteTarget(m)}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>

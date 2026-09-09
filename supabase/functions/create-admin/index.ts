@@ -14,6 +14,7 @@ const Schema = z.object({
     .regex(/^[a-z0-9_.-]+$/),
   full_name: z.string().trim().min(1).max(200),
   password: z.string().min(8).max(72),
+  role: z.enum(["admin", "viewer"]).default("admin"),
 });
 
 Deno.serve(async (req) => {
@@ -53,14 +54,14 @@ Deno.serve(async (req) => {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const { username, full_name, password } = parsed.data;
+    const { username, full_name, password, role } = parsed.data;
     const email = `${username}@${USERNAME_DOMAIN}`;
 
     const { data: created, error: createErr } = await admin.auth.admin.createUser({
       email,
       password,
       email_confirm: true,
-      user_metadata: { full_name, username },
+      user_metadata: { full_name, username, role },
     });
     if (createErr) {
       return new Response(JSON.stringify({ error: createErr.message }), {
@@ -68,7 +69,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    return new Response(JSON.stringify({ user_id: created.user?.id, username, full_name }), {
+    return new Response(JSON.stringify({ user_id: created.user?.id, username, full_name, role }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {

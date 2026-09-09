@@ -18,6 +18,7 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -51,6 +52,7 @@ const empty: FormValues = {
 
 
 export default function Funds() {
+  const { isViewer } = useAuth();
   const [funds, setFunds] = useState<Fund[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -170,7 +172,7 @@ export default function Funds() {
               Categorize income and expenses across foundation funds.
             </p>
           </div>
-          <Button onClick={openCreate}><Plus className="h-4 w-4" /> Add Fund</Button>
+          {!isViewer && <Button onClick={openCreate}><Plus className="h-4 w-4" /> Add Fund</Button>}
         </div>
 
         <Card>
@@ -213,15 +215,21 @@ export default function Funds() {
 
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
-                          <Button variant="ghost" size="icon" title="Edit" onClick={() => openEdit(f)}>
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" title={f.is_active ? "Deactivate" : "Activate"} onClick={() => setToggleTarget(f)}>
-                            <Power className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" title="Delete" onClick={() => setDeleteTarget(f)}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          {isViewer ? (
+                            <span className="text-xs text-muted-foreground">View only</span>
+                          ) : (
+                            <>
+                              <Button variant="ghost" size="icon" title="Edit" onClick={() => openEdit(f)}>
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button variant="ghost" size="icon" title={f.is_active ? "Deactivate" : "Activate"} onClick={() => setToggleTarget(f)}>
+                                <Power className="h-4 w-4" />
+                              </Button>
+                              <Button variant="ghost" size="icon" title="Delete" onClick={() => setDeleteTarget(f)}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
