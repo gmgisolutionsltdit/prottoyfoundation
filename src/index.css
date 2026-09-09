@@ -103,3 +103,21 @@ All colors MUST be HSL.
     @apply bg-background text-foreground;
   }
 }
+
+/* Item 17 (print stylesheet): the app's colored surfaces and the
+   scroll-bounded table containers used everywhere for sticky headers
+   (max-h-[70vh] overflow-auto) both need overriding for print — a
+   bounded height would otherwise clip a printed table after one screen's
+   worth of rows, and a colored page background wastes ink for no reason.
+   Chrome that shouldn't appear on paper (nav, buttons, filters) is opted
+   out per-element with Tailwind's print: variant instead of listed here,
+   since what counts as "chrome" differs by page. */
+@media print {
+  body {
+    background: white;
+  }
+  .max-h-\[70vh\] {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+}

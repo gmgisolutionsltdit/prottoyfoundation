@@ -188,7 +188,7 @@ export default function Funds() {
           <Button
             size="icon"
             onClick={openCreate}
-            className="fixed bottom-6 right-6 z-20 h-14 w-14 rounded-full shadow-lg sm:hidden"
+            className="fixed bottom-6 right-6 z-20 h-14 w-14 rounded-full shadow-lg sm:hidden print:hidden"
             aria-label="Add fund"
           >
             <Plus className="h-6 w-6" />

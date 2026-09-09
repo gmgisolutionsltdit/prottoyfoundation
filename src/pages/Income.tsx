@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { useDirtyForm, guardedOpenChange } from "@/hooks/useDirtyForm";
 import { useUrlParam, useUrlNumberParam } from "@/hooks/useUrlParam";
 import { z } from "zod";
@@ -23,7 +24,7 @@ import {
 } from "@/components/ui/select";
 import { TablePagination } from "@/components/TablePagination";
 import { TableSkeletonRows } from "@/components/TableSkeleton";
-import { EmptyStateRow } from "@/components/EmptyState";
+import { EmptyState, EmptyStateRow } from "@/components/EmptyState";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
@@ -32,7 +33,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Search, Receipt, Pencil, Trash2, Paperclip, X, ArrowDownCircle } from "lucide-react";
+import { Plus, Search, Receipt, Pencil, Trash2, Paperclip, X, ArrowDownCircle, Printer } from "lucide-react";
 import { formatBDT, formatDMY, PAYMENT_METHODS, PAYMENT_LABEL, type PaymentMethod } from "@/lib/format";
 import { uploadAttachment, deleteAttachment } from "@/lib/uploadAttachment";
 import { AttachmentThumb, AttachmentViewLink } from "@/components/AttachmentThumb";
@@ -418,7 +419,7 @@ export default function Income() {
             size="icon"
             onClick={() => openCreate()}
             disabled={funds.length === 0}
-            className="fixed bottom-6 right-6 z-20 h-14 w-14 rounded-full shadow-lg sm:hidden"
+            className="fixed bottom-6 right-6 z-20 h-14 w-14 rounded-full shadow-lg sm:hidden print:hidden"
             aria-label="New income"
           >
             <Plus className="h-6 w-6" />
@@ -515,7 +516,66 @@ export default function Income() {
               </div>
             </div>
 
-            <div className="rounded-md border max-h-[70vh] overflow-auto">
+            {/* Mobile card view — the 10-column table is unusable at phone
+                widths, so it's swapped for stacked cards below md. */}
+            <div className="space-y-2 md:hidden">
+              {loading && Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="animate-pulse rounded-md border p-3">
+                  <div className="mb-2 h-4 w-2/3 rounded bg-muted" />
+                  <div className="h-3 w-1/3 rounded bg-muted" />
+                </div>
+              ))}
+              {filtered.length === 0 && !loading && (
+                <EmptyState
+                  icon={ArrowDownCircle}
+                  title="No income recorded"
+                  description="Record your first donation or payment to see it here."
+                  actionLabel={!isViewer ? "Record income" : undefined}
+                  onAction={!isViewer ? () => openCreate() : undefined}
+                />
+              )}
+              {pageRows.map((r) => (
+                <div key={r.id} className="rounded-md border p-3">
+                  <div className="mb-2 flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="truncate font-medium">
+                        {r.is_anonymous ? "Anonymous" : (r.member?.full_name ?? r.donor_name ?? "—")}
+                      </p>
+                      <p className="text-xs text-muted-foreground">{formatDMY(r.txn_date)} · {r.fund?.name ?? "—"}</p>
+                    </div>
+                    <span className="shrink-0 font-mono font-medium">৳{formatBDT(r.amount)}</span>
+                  </div>
+                  <div className="mb-2 flex flex-wrap items-center gap-1.5">
+                    <Badge variant="outline">{PAYMENT_LABEL[r.payment_method as PaymentMethod]}</Badge>
+                    {r.receipt && (
+                      <Badge variant="secondary" className="gap-1">
+                        <Receipt className="h-3 w-3" />{r.receipt.receipt_no}
+                      </Badge>
+                    )}
+                    {r.is_anonymous && <Badge variant="secondary">Anonymous</Badge>}
+                  </div>
+                  <div className="flex flex-wrap justify-end gap-1 border-t pt-2">
+                    {r.receipt && (
+                      <Button variant="ghost" size="sm" asChild>
+                        <Link to={`/receipt/${r.id}`}><Printer className="mr-1 h-3.5 w-3.5" /> Print</Link>
+                      </Button>
+                    )}
+                    {!isViewer && (
+                      <>
+                        <Button variant="ghost" size="sm" onClick={() => openEdit(r)}>
+                          <Pencil className="mr-1 h-3.5 w-3.5" /> Edit
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => setDeleteTarget(r)}>
+                          <Trash2 className="mr-1 h-3.5 w-3.5" /> Delete
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="hidden rounded-md border max-h-[70vh] overflow-auto md:block">
               <Table>
                 <TableHeader className="sticky top-0 z-10 bg-card">
                   <TableRow>
@@ -541,7 +601,7 @@ export default function Income() {
                       title="No income recorded"
                       description="Record your first donation or payment to see it here."
                       actionLabel={!isViewer ? "Record income" : undefined}
-                      onAction={!isViewer ? openCreate : undefined}
+                      onAction={!isViewer ? () => openCreate() : undefined}
                     />
                   )}
                   {pageRows.map((r) => (
@@ -583,8 +643,15 @@ export default function Income() {
                       <TableCell className="text-right">
 
                         <div className="flex justify-end gap-1">
+                          {r.receipt && (
+                            <Button variant="ghost" size="icon" title="Print receipt" asChild>
+                              <Link to={`/receipt/${r.id}`}>
+                                <Printer className="h-4 w-4" />
+                              </Link>
+                            </Button>
+                          )}
                           {isViewer ? (
-                            <span className="text-xs text-muted-foreground">View only</span>
+                            !r.receipt && <span className="text-xs text-muted-foreground">View only</span>
                           ) : (
                             <>
                               <Button variant="ghost" size="icon" title="Edit" onClick={() => openEdit(r)}>

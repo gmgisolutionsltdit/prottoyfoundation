@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Image as ImageIcon, FileDown, ChevronDown, Receipt } from "lucide-react";
+import { Image as ImageIcon, FileDown, ChevronDown, Receipt, Printer as PrinterIcon } from "lucide-react";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -212,7 +212,7 @@ export default function Dues() {
           </p>
         </div>
 
-        <Card>
+        <Card className="print:hidden">
           <CardHeader>
             <CardTitle>Filters</CardTitle>
             <CardDescription>Calculated up to the selected month (inclusive).</CardDescription>
@@ -327,12 +327,15 @@ export default function Dues() {
                   : `${rows.length} subscription rows · ${pageMemberIds.length} members`}
               </CardDescription>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 print:hidden">
               <Button variant="outline" size="sm" onClick={handleExportImage} disabled={exporting || rows.length === 0}>
                 <ImageIcon className="mr-2 h-4 w-4" /> Export image
               </Button>
               <Button variant="outline" size="sm" onClick={handleExportPdf} disabled={exporting || rows.length === 0}>
                 <FileDown className="mr-2 h-4 w-4" /> Export PDF
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => window.print()} disabled={rows.length === 0}>
+                <PrinterIcon className="mr-2 h-4 w-4" /> Print
               </Button>
             </div>
           </CardHeader>
@@ -341,7 +344,7 @@ export default function Dues() {
                 below: the table stays the export-image/PDF capture target
                 (html2canvas can't capture a display:none node), so it's
                 left always-rendered rather than hidden on small screens. */}
-            <div className="space-y-2 md:hidden">
+            <div className="space-y-2 md:hidden print:hidden">
               {loading && Array.from({ length: 4 }).map((_, i) => (
                 <div key={i} className="animate-pulse rounded-md border p-3">
                   <div className="mb-2 h-4 w-2/3 rounded bg-muted" />
@@ -463,7 +466,7 @@ export default function Dues() {
               </div>
             </div>
 
-            <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 print:hidden">
               <div className="flex items-center gap-2">
                 <Label htmlFor="pageSize" className="text-xs text-muted-foreground">Rows per page</Label>
                 <Select value={String(pageSize)} onValueChange={(v) => setPageSize(Number(v))}>
@@ -477,11 +480,20 @@ export default function Dues() {
               </div>
             </div>
 
-            <TablePagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              onPageChange={setPage}
-            />
+            <div className="print:hidden">
+              <TablePagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setPage}
+              />
+            </div>
+
+            {/* Printing/exporting only captures the current page of rows
+                (same as Export image/PDF above) — bump "Rows per page" to
+                show everything you want in the printout. */}
+            <p className="mt-2 hidden text-xs text-muted-foreground print:hidden sm:block">
+              Tip: increase "Rows per page" before printing to include more rows.
+            </p>
           </CardContent>
         </Card>
       </div>

@@ -121,7 +121,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-screen bg-muted/30">
       {!desktopCollapsed && (
-        <aside className="hidden w-60 shrink-0 flex-col border-r bg-card md:flex">
+        <aside className="hidden w-60 shrink-0 flex-col border-r bg-card md:flex print:hidden">
           {brand}
           <SidebarNav />
           {footer}
@@ -129,7 +129,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
       )}
 
       <main className="min-w-0 flex-1 overflow-auto">
-        <div className="hidden items-center gap-2 border-b bg-card p-2 md:flex">
+        <div className="hidden items-center gap-2 border-b bg-card p-2 md:flex print:hidden">
           <Button
             variant="ghost"
             size="icon"
@@ -159,7 +159,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
           </Button>
         </div>
 
-        <div className="md:hidden flex items-center justify-between border-b bg-card p-3">
+        <div className="md:hidden flex items-center justify-between border-b bg-card p-3 print:hidden">
           <div className="flex items-center gap-2">
             <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
               <SheetTrigger asChild>
