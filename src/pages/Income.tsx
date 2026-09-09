@@ -19,9 +19,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import {
-  Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious,
-} from "@/components/ui/pagination";
+import { TablePagination } from "@/components/TablePagination";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
@@ -53,6 +51,7 @@ const txnSchema = z.object({
   from_month: z.string().optional().or(z.literal("")),
   to_month: z.string().optional().or(z.literal("")),
   description: z.string().trim().max(500).optional().or(z.literal("")),
+  is_anonymous: z.boolean(),
   issue_receipt: z.boolean(),
 });
 type FormValues = z.infer<typeof txnSchema>;
@@ -68,6 +67,7 @@ const empty: FormValues = {
   from_month: "",
   to_month: "",
   description: "",
+  is_anonymous: false,
   issue_receipt: true,
 };
 
@@ -232,6 +232,7 @@ export default function Income() {
       txn_date: r.txn_date,
       for_month: r.for_month ? String(r.for_month).slice(0, 7) : "",
       description: r.description ?? "",
+      is_anonymous: r.is_anonymous ?? false,
       issue_receipt: false,
     });
     setAttachmentFile(null);
@@ -305,6 +306,7 @@ export default function Income() {
       payment_method: v.payment_method,
       txn_date: v.txn_date,
       description: v.description || null,
+      is_anonymous: v.is_anonymous,
       attachment_url,
     };
 
@@ -390,8 +392,10 @@ export default function Income() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <div className="relative flex-1">
+            {/* Wraps instead of crushing: without this the fixed-width selects
+                squeezed the search box down to nothing at mid widths. */}
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+              <div className="relative min-w-[14rem] flex-1">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input className="pl-9" placeholder="Search donor, member, fund or receipt no."
                   value={search} onChange={(e) => setSearch(e.target.value)} />
@@ -475,6 +479,7 @@ export default function Income() {
                     <TableHead>Date</TableHead>
                     <TableHead>Receipt</TableHead>
                     <TableHead>Donor / Member</TableHead>
+                    <TableHead>Anonymous</TableHead>
                     <TableHead>Fund</TableHead>
                     <TableHead>Method</TableHead>
                     <TableHead>Attachment</TableHead>
@@ -487,7 +492,7 @@ export default function Income() {
                 <TableBody>
                   {filtered.length === 0 && !loading && (
                     <TableRow>
-                      <TableCell colSpan={9} className="h-24 text-center text-muted-foreground">
+                      <TableCell colSpan={10} className="h-24 text-center text-muted-foreground">
                         No income recorded.
                       </TableCell>
                     </TableRow>
@@ -504,11 +509,16 @@ export default function Income() {
                       </TableCell>
                       <TableCell>
                         <div className="font-medium">
-                          {r.member?.full_name ?? r.donor_name ?? "—"}
+                          {r.is_anonymous ? "Anonymous" : (r.member?.full_name ?? r.donor_name ?? "—")}
                         </div>
-                        {r.member && (
+                        {r.member && !r.is_anonymous && (
                           <div className="text-xs text-muted-foreground">Member #{r.member.member_no}</div>
                         )}
+                      </TableCell>
+                      <TableCell>
+                        {r.is_anonymous
+                          ? <Badge variant="secondary">Anonymous</Badge>
+                          : <span className="text-muted-foreground">—</span>}
                       </TableCell>
                       <TableCell>{r.fund?.name ?? "—"}</TableCell>
                       <TableCell>
@@ -546,37 +556,11 @@ export default function Income() {
               </Table>
             </div>
 
-            {totalPages > 1 && (
-              <Pagination>
-                <PaginationContent>
-                  <PaginationItem>
-                    <PaginationPrevious
-                      href="#"
-                      onClick={(e) => { e.preventDefault(); setPage((p) => Math.max(1, p - 1)); }}
-                      className={currentPage === 1 ? "pointer-events-none opacity-50" : undefined}
-                    />
-                  </PaginationItem>
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-                    <PaginationItem key={p}>
-                      <PaginationLink
-                        href="#"
-                        isActive={p === currentPage}
-                        onClick={(e) => { e.preventDefault(); setPage(p); }}
-                      >
-                        {p}
-                      </PaginationLink>
-                    </PaginationItem>
-                  ))}
-                  <PaginationItem>
-                    <PaginationNext
-                      href="#"
-                      onClick={(e) => { e.preventDefault(); setPage((p) => Math.min(totalPages, p + 1)); }}
-                      className={currentPage === totalPages ? "pointer-events-none opacity-50" : undefined}
-                    />
-                  </PaginationItem>
-                </PaginationContent>
-              </Pagination>
-            )}
+            <TablePagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setPage}
+            />
           </CardContent>
         </Card>
       </div>
@@ -702,6 +686,15 @@ export default function Income() {
                   </Button>
                 </div>
               )}
+            </div>
+
+            <div className="flex items-center justify-between rounded-md border p-3">
+              <div>
+                <Label>Anonymous donation</Label>
+                <p className="text-xs text-muted-foreground">Hides the donor's name in the Income list</p>
+              </div>
+              <Switch checked={form.is_anonymous}
+                onCheckedChange={(v) => setForm({ ...form, is_anonymous: v })} />
             </div>
 
             {!editing && (

@@ -683,6 +683,7 @@ export type Database = {
           donor_name: string | null
           for_month: string | null
           fund_id: string
+          is_anonymous: boolean
           id: string
           member_id: string | null
           payment_method: Database["public"]["Enums"]["payment_method"]
@@ -698,6 +699,7 @@ export type Database = {
           donor_name?: string | null
           for_month?: string | null
           fund_id: string
+          is_anonymous?: boolean
           id?: string
           member_id?: string | null
           payment_method?: Database["public"]["Enums"]["payment_method"]
@@ -713,6 +715,7 @@ export type Database = {
           donor_name?: string | null
           for_month?: string | null
           fund_id?: string
+          is_anonymous?: boolean
           id?: string
           member_id?: string | null
           payment_method?: Database["public"]["Enums"]["payment_method"]

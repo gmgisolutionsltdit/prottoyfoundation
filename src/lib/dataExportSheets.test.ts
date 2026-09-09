@@ -13,20 +13,29 @@ function sheetToRows(ws: XLSX.WorkSheet): unknown[][] {
 describe("buildIncomeSheet", () => {
   it("puts a header row first and maps the payment method to its label", () => {
     const ws = buildIncomeSheet([
-      { txn_date: "2026-09-01", receipt_no: "PF-2026-0001", payer: "Md Nurullah", fund_name: "Registration Fee", payment_method: "bkash", amount: 100, for_month: "2026-09-01" },
+      { txn_date: "2026-09-01", receipt_no: "PF-2026-0001", payer: "Md Nurullah", fund_name: "Registration Fee", payment_method: "bkash", amount: 100, for_month: "2026-09-01", is_anonymous: false },
     ]);
     const rows = sheetToRows(ws);
-    expect(rows[0]).toEqual(["Date", "Receipt No", "Donor / Member", "Fund", "Method", "Amount", "For Month"]);
-    expect(rows[1]).toEqual(["2026-09-01", "PF-2026-0001", "Md Nurullah", "Registration Fee", "bKash", 100, "2026-09"]);
+    expect(rows[0]).toEqual(["Date", "Receipt No", "Donor / Member", "Anonymous", "Fund", "Method", "Amount", "For Month"]);
+    expect(rows[1]).toEqual(["2026-09-01", "PF-2026-0001", "Md Nurullah", "No", "Registration Fee", "bKash", 100, "2026-09"]);
   });
 
   it("shows a dash for a null receipt or for-month", () => {
     const ws = buildIncomeSheet([
-      { txn_date: "2026-09-01", receipt_no: null, payer: "Donor", fund_name: "Zakat", payment_method: "cash", amount: 500, for_month: null },
+      { txn_date: "2026-09-01", receipt_no: null, payer: "Donor", fund_name: "Zakat", payment_method: "cash", amount: 500, for_month: null, is_anonymous: false },
     ]);
     const rows = sheetToRows(ws);
     expect(rows[1][1]).toBe("—");
-    expect(rows[1][6]).toBe("—");
+    expect(rows[1][7]).toBe("—");
+  });
+
+  it("hides the donor's name on an anonymous donation", () => {
+    const ws = buildIncomeSheet([
+      { txn_date: "2026-09-01", receipt_no: "PF-2026-0002", payer: "Md Nurullah", fund_name: "Zakat", payment_method: "cash", amount: 500, for_month: null, is_anonymous: true },
+    ]);
+    const rows = sheetToRows(ws);
+    expect(rows[1][2]).toBe("Anonymous");
+    expect(rows[1][3]).toBe("Yes");
   });
 });
 

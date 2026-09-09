@@ -53,24 +53,26 @@ export type IncomeExportRow = {
   payment_method: string;
   amount: number;
   for_month: string | null;
+  is_anonymous: boolean;
 };
 
 export function buildIncomeSheet(rows: IncomeExportRow[]): XLSX.WorkSheet {
   const aoa = rows.map((r) => [
     r.txn_date,
     r.receipt_no ?? "—",
-    r.payer,
+    r.is_anonymous ? "Anonymous" : r.payer,
+    r.is_anonymous ? "Yes" : "No",
     r.fund_name,
     PAYMENT_LABEL[r.payment_method as PaymentMethod] ?? r.payment_method,
     r.amount,
     r.for_month ? r.for_month.slice(0, 7) : "—",
   ]);
   const ws = buildFlatSheet(
-    ["Date", "Receipt No", "Donor / Member", "Fund", "Method", "Amount", "For Month"],
+    ["Date", "Receipt No", "Donor / Member", "Anonymous", "Fund", "Method", "Amount", "For Month"],
     aoa,
-    [12, 14, 26, 20, 10, 12, 12],
+    [12, 14, 26, 11, 20, 10, 12, 12],
   );
-  applyAmountFormat(ws, rows.length, 5);
+  applyAmountFormat(ws, rows.length, 6);
   return ws;
 }
 

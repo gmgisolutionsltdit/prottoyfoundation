@@ -43,8 +43,16 @@ const createSchema = z.object({
     .regex(/^[a-z0-9_.-]+$/, "Use letters, numbers, dot, dash, or underscore"),
   full_name: z.string().trim().min(1, "Name required").max(200),
   password: z.string().min(8, "At least 8 characters").max(72),
-  role: z.enum(["admin", "viewer"]),
+  role: z.enum(["admin", "viewer", "super_admin"]),
 });
+
+type CreateRole = z.infer<typeof createSchema>["role"];
+
+const CREATED_TITLE: Record<CreateRole, string> = {
+  admin: "Admin created",
+  viewer: "Viewer account created",
+  super_admin: "Super admin created",
+};
 
 const editSchema = z.object({
   full_name: z.string().trim().min(1, "Name required").max(200),
@@ -76,7 +84,7 @@ export default function UsersPage() {
   const [username, setUsername] = useState("");
   const [fullName, setFullName] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<"admin" | "viewer">("admin");
+  const [role, setRole] = useState<CreateRole>("admin");
   const [showCreatePassword, setShowCreatePassword] = useState(false);
 
   const [resetTarget, setResetTarget] = useState<AdminRow | null>(null);
@@ -145,7 +153,7 @@ export default function UsersPage() {
       return;
     }
     toast({
-      title: parsed.data.role === "viewer" ? "Viewer account created" : "Admin created",
+      title: CREATED_TITLE[parsed.data.role],
       description: `${parsed.data.username} can now sign in.`,
     });
     setUsername(""); setFullName(""); setPassword(""); setRole("admin");
@@ -269,11 +277,12 @@ export default function UsersPage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="ca-role">Role</Label>
-                  <Select value={role} onValueChange={(v) => setRole(v as "admin" | "viewer")}>
+                  <Select value={role} onValueChange={(v) => setRole(v as CreateRole)}>
                     <SelectTrigger id="ca-role"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="admin">Admin — full access</SelectItem>
                       <SelectItem value="viewer">Viewer — read only</SelectItem>
+                      <SelectItem value="super_admin">Super Admin — full access + user management</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

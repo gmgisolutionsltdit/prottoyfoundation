@@ -14,7 +14,7 @@ const Schema = z.object({
     .regex(/^[a-z0-9_.-]+$/),
   full_name: z.string().trim().min(1).max(200),
   password: z.string().min(8).max(72),
-  role: z.enum(["admin", "viewer"]).default("admin"),
+  role: z.enum(["admin", "viewer", "super_admin"]).default("admin"),
 });
 
 Deno.serve(async (req) => {

@@ -57,7 +57,7 @@ export default function DataExport() {
 
   async function buildIncome(): Promise<IncomeExportRow[]> {
     const [t, f, m, r] = await Promise.all([
-      supabase.from("transactions").select("id,txn_date,donor_name,member_id,fund_id,payment_method,amount,for_month").order("txn_date"),
+      supabase.from("transactions").select("id,txn_date,donor_name,member_id,fund_id,payment_method,amount,for_month,is_anonymous").order("txn_date"),
       supabase.from("funds").select("id,name"),
       supabase.from("members").select("id,full_name"),
       supabase.from("receipts").select("transaction_id,receipt_no"),
@@ -76,6 +76,7 @@ export default function DataExport() {
         payment_method: row.payment_method,
         amount: Number(row.amount),
         for_month: row.for_month,
+        is_anonymous: row.is_anonymous ?? false,
       }));
   }
 
