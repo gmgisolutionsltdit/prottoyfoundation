@@ -17,9 +17,9 @@ describe("formatBDT", () => {
 });
 
 describe("formatDMY", () => {
-  it("formats an ISO date as DD-Mon-YYYY", () => {
-    expect(formatDMY("2026-09-01")).toBe("01-Sep-2026");
-    expect(formatDMY("2026-12-25")).toBe("25-Dec-2026");
+  it("formats an ISO date as D Mon YYYY", () => {
+    expect(formatDMY("2026-09-01")).toBe("1 Sep 2026");
+    expect(formatDMY("2026-12-25")).toBe("25 Dec 2026");
   });
 
   it("returns an em dash for null/undefined/empty", () => {

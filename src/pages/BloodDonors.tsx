@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { formatDMY } from "@/lib/format";
 import { Plus, Search, Pencil, Trash2 } from "lucide-react";
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
 import { safeErrorMessage } from "@/lib/errors";
@@ -262,7 +263,7 @@ export default function BloodDonors() {
                           </div>
                         ) : "—"}
                       </TableCell>
-                      <TableCell>{d.last_donation_date ?? "—"}</TableCell>
+                      <TableCell>{formatDMY(d.last_donation_date)}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
                           {isViewer ? (

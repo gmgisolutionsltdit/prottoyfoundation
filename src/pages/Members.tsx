@@ -59,6 +59,7 @@ import type { Database } from "@/integrations/supabase/types";
 import { MemberSubscriptionsDialog } from "@/components/MemberSubscriptionsDialog";
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
 import { safeErrorMessage } from "@/lib/errors";
+import { formatDMY } from "@/lib/format";
 
 type Member = Database["public"]["Tables"]["members"]["Row"];
 type MemberType = { id: string; name: string; is_active: boolean; sort_order: number };
@@ -416,7 +417,7 @@ export default function Members() {
                       </TableCell>
                       <TableCell>{m.mobile ?? "—"}</TableCell>
                       <TableCell>{m.reference_person ?? "—"}</TableCell>
-                      <TableCell>{m.joining_date}</TableCell>
+                      <TableCell>{formatDMY(m.joining_date)}</TableCell>
                       <TableCell>
                         <div className="flex flex-wrap gap-1">
                           {(memberSubs.get(m.id) ?? []).map((s) => (
