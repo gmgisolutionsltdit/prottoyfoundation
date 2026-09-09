@@ -405,11 +405,25 @@ export default function Income() {
             </p>
           </div>
           {!isViewer && (
-            <Button onClick={openCreate} disabled={funds.length === 0}>
+            <Button onClick={() => openCreate()} disabled={funds.length === 0} className="hidden sm:inline-flex">
               <Plus className="h-4 w-4" /> New Income
             </Button>
           )}
         </div>
+
+        {/* Sticky mobile action button — the header button above scrolls
+            away with the page on a phone; this stays reachable. */}
+        {!isViewer && (
+          <Button
+            size="icon"
+            onClick={() => openCreate()}
+            disabled={funds.length === 0}
+            className="fixed bottom-6 right-6 z-20 h-14 w-14 rounded-full shadow-lg sm:hidden"
+            aria-label="New income"
+          >
+            <Plus className="h-6 w-6" />
+          </Button>
+        )}
 
         <Card>
           <CardHeader>

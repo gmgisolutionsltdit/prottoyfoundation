@@ -148,8 +148,19 @@ export default function MemberTypes() {
             <h1 className="text-2xl font-semibold tracking-tight">Member Types</h1>
             <p className="text-sm text-muted-foreground">Define the categories of membership.</p>
           </div>
-          {!isViewer && <Button onClick={openCreate}><Plus className="h-4 w-4" /> Add Type</Button>}
+          {!isViewer && <Button onClick={openCreate} className="hidden sm:inline-flex"><Plus className="h-4 w-4" /> Add Type</Button>}
         </div>
+
+        {!isViewer && (
+          <Button
+            size="icon"
+            onClick={openCreate}
+            className="fixed bottom-6 right-6 z-20 h-14 w-14 rounded-full shadow-lg sm:hidden"
+            aria-label="Add type"
+          >
+            <Plus className="h-6 w-6" />
+          </Button>
+        )}
 
         <Card>
           <CardHeader>

@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { TablePagination } from "@/components/TablePagination";
 import { TableSkeletonRows } from "@/components/TableSkeleton";
-import { EmptyStateRow } from "@/components/EmptyState";
+import { EmptyState, EmptyStateRow } from "@/components/EmptyState";
 import { useUrlParam, useUrlNumberParam } from "@/hooks/useUrlParam";
 import { formatBDT } from "@/lib/format";
 import { toast } from "@/hooks/use-toast";
@@ -337,6 +337,56 @@ export default function Dues() {
             </div>
           </CardHeader>
           <CardContent>
+            {/* Mobile card view — added alongside, not instead of, the table
+                below: the table stays the export-image/PDF capture target
+                (html2canvas can't capture a display:none node), so it's
+                left always-rendered rather than hidden on small screens. */}
+            <div className="space-y-2 md:hidden">
+              {loading && Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="animate-pulse rounded-md border p-3">
+                  <div className="mb-2 h-4 w-2/3 rounded bg-muted" />
+                  <div className="h-3 w-1/3 rounded bg-muted" />
+                </div>
+              ))}
+              {rows.length === 0 && !loading && (
+                <EmptyState icon={Receipt} title="No subscriptions match" description="Try a different member, fund, or month filter." />
+              )}
+              {pageRows.map((r) => (
+                <div key={r.key} className="rounded-md border p-3">
+                  <div className="mb-1 flex items-start justify-between gap-2">
+                    <div>
+                      <p className="font-medium leading-tight">{r.memberName}</p>
+                      <p className="text-xs text-muted-foreground">#{r.memberNo} · {r.fundName}</p>
+                    </div>
+                    {r.due > 0 ? (
+                      <Badge variant="destructive" className="shrink-0 font-mono font-normal">{formatBDT(r.due)}</Badge>
+                    ) : r.due < 0 ? (
+                      <Badge variant="outline" className="shrink-0 font-mono font-normal text-green-700">+{formatBDT(-r.due)}</Badge>
+                    ) : (
+                      <Badge variant="outline" className="shrink-0 font-mono font-normal">Clear</Badge>
+                    )}
+                  </div>
+                  <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
+                    <div>
+                      <p className="text-muted-foreground">Expected</p>
+                      <p className="font-mono">{formatBDT(r.expected)}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Paid</p>
+                      <p className="font-mono">{formatBDT(r.paid)}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Joined</p>
+                      <p className="whitespace-nowrap">{r.joiningLabel}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Always rendered (not display:none) even on mobile, purely so
+                Export image/PDF has a real node to capture from any
+                viewport — the card view above is what mobile actually reads. */}
             <div className="rounded-md border overflow-x-auto">
               <div ref={captureRef} className="min-w-max bg-background p-4">
                 <div className="mb-3">

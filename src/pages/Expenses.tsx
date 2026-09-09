@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/select";
 import { TablePagination } from "@/components/TablePagination";
 import { TableSkeletonRows } from "@/components/TableSkeleton";
-import { EmptyStateRow } from "@/components/EmptyState";
+import { EmptyState, EmptyStateRow } from "@/components/EmptyState";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
@@ -236,11 +236,23 @@ export default function Expenses() {
             <p className="text-sm text-muted-foreground">Track outflows from each fund.</p>
           </div>
           {!isViewer && (
-            <Button onClick={openCreate} disabled={funds.length === 0}>
+            <Button onClick={openCreate} disabled={funds.length === 0} className="hidden sm:inline-flex">
               <Plus className="h-4 w-4" /> New Expense
             </Button>
           )}
         </div>
+
+        {!isViewer && (
+          <Button
+            size="icon"
+            onClick={openCreate}
+            disabled={funds.length === 0}
+            className="fixed bottom-6 right-6 z-20 h-14 w-14 rounded-full shadow-lg sm:hidden"
+            aria-label="New expense"
+          >
+            <Plus className="h-6 w-6" />
+          </Button>
+        )}
 
         <Card>
           <CardHeader>
@@ -297,7 +309,48 @@ export default function Expenses() {
               </div>
             </div>
 
-            <div className="rounded-md border max-h-[70vh] overflow-auto">
+            {/* Mobile card view — 8 columns don't fit a phone width. */}
+            <div className="space-y-2 md:hidden">
+              {loading && Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="animate-pulse rounded-md border p-3">
+                  <div className="mb-2 h-4 w-2/3 rounded bg-muted" />
+                  <div className="h-3 w-1/3 rounded bg-muted" />
+                </div>
+              ))}
+              {filtered.length === 0 && !loading && (
+                <EmptyState
+                  icon={ArrowUpCircle}
+                  title="No expenses recorded"
+                  description="Record your first expense to see it here."
+                  actionLabel={!isViewer ? "Record expense" : undefined}
+                  onAction={!isViewer ? openCreate : undefined}
+                />
+              )}
+              {pageRows.map((r) => (
+                <div key={r.id} className="rounded-md border p-3">
+                  <div className="mb-2 flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="truncate font-medium">{r.payee ?? r.category ?? "Expense"}</p>
+                      <p className="text-xs text-muted-foreground">{formatDMY(r.expense_date)} · {r.fund?.name ?? "—"}</p>
+                    </div>
+                    <span className="shrink-0 font-mono font-medium">৳{formatBDT(r.amount)}</span>
+                  </div>
+                  {r.description && <p className="mb-2 truncate text-xs text-muted-foreground">{r.description}</p>}
+                  {!isViewer && (
+                    <div className="flex justify-end gap-1 border-t pt-2">
+                      <Button variant="ghost" size="sm" onClick={() => openEdit(r)}>
+                        <Pencil className="mr-1 h-3.5 w-3.5" /> Edit
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => setDeleteTarget(r)}>
+                        <Trash2 className="mr-1 h-3.5 w-3.5" /> Delete
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div className="hidden rounded-md border max-h-[70vh] overflow-auto md:block">
               <Table>
                 <TableHeader className="sticky top-0 z-10 bg-card">
                   <TableRow>

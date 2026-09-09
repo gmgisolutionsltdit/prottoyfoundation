@@ -302,11 +302,22 @@ export default function Meetings() {
             </p>
           </div>
           {!isViewer && (
-            <Button onClick={openCreate}>
+            <Button onClick={openCreate} className="hidden sm:inline-flex">
               <Plus className="h-4 w-4" /> Add Meeting
             </Button>
           )}
         </div>
+
+        {!isViewer && (
+          <Button
+            size="icon"
+            onClick={openCreate}
+            className="fixed bottom-6 right-6 z-20 h-14 w-14 rounded-full shadow-lg sm:hidden"
+            aria-label="Add meeting"
+          >
+            <Plus className="h-6 w-6" />
+          </Button>
+        )}
 
         <Card>
           <CardHeader>

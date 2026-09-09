@@ -42,7 +42,7 @@ import {
 } from "@/components/ui/select";
 import { TablePagination } from "@/components/TablePagination";
 import { TableSkeletonRows } from "@/components/TableSkeleton";
-import { EmptyStateRow } from "@/components/EmptyState";
+import { EmptyState, EmptyStateRow } from "@/components/EmptyState";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -332,11 +332,22 @@ export default function Members() {
             </p>
           </div>
           {!isViewer && (
-            <Button onClick={openCreate}>
+            <Button onClick={openCreate} className="hidden sm:inline-flex">
               <Plus className="h-4 w-4" /> Add Member
             </Button>
           )}
         </div>
+
+        {!isViewer && (
+          <Button
+            size="icon"
+            onClick={openCreate}
+            className="fixed bottom-6 right-6 z-20 h-14 w-14 rounded-full shadow-lg sm:hidden"
+            aria-label="Add member"
+          >
+            <Plus className="h-6 w-6" />
+          </Button>
+        )}
 
         <Card>
           <CardHeader>
@@ -388,7 +399,55 @@ export default function Members() {
               </div>
             </div>
 
-            <div className="rounded-md border max-h-[70vh] overflow-auto">
+            {/* Mobile card view — 10 columns don't fit a phone width. */}
+            <div className="space-y-2 md:hidden">
+              {loading && Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="animate-pulse rounded-md border p-3">
+                  <div className="mb-2 h-4 w-2/3 rounded bg-muted" />
+                  <div className="h-3 w-1/3 rounded bg-muted" />
+                </div>
+              ))}
+              {filtered.length === 0 && !loading && (
+                <EmptyState
+                  icon={Users}
+                  title="No members found"
+                  description="Add your first member to get started."
+                  actionLabel={!isViewer ? "Add member" : undefined}
+                  onAction={!isViewer ? openCreate : undefined}
+                />
+              )}
+              {pageRows.map((m) => (
+                <div key={m.id} className="rounded-md border p-3">
+                  <div className="mb-2 flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <Link to={`/members/${m.id}`} className="truncate font-medium hover:underline">{m.full_name}</Link>
+                      <p className="text-xs text-muted-foreground">#{m.member_no} · {m.mobile ?? "No mobile"}</p>
+                    </div>
+                    {m.is_active ? <Badge className="shrink-0">Active</Badge> : <Badge variant="outline" className="shrink-0">Inactive</Badge>}
+                  </div>
+                  <div className="mb-2 flex flex-wrap gap-1">
+                    {(memberSubs.get(m.id) ?? []).map((s) => (
+                      <Badge key={s.fund_id} variant="outline">{fundsMap.get(s.fund_id) ?? "—"}</Badge>
+                    ))}
+                  </div>
+                  {!isViewer && (
+                    <div className="flex flex-wrap justify-end gap-1 border-t pt-2">
+                      <Button variant="ghost" size="sm" asChild>
+                        <Link to={`/income?newFor=${m.id}`}><PlusCircle className="mr-1 h-3.5 w-3.5" /> Income</Link>
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => setSubsTarget(m)}>
+                        <Wallet className="mr-1 h-3.5 w-3.5" /> Funds
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => openEdit(m)}>
+                        <Pencil className="mr-1 h-3.5 w-3.5" /> Edit
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div className="hidden rounded-md border max-h-[70vh] overflow-auto md:block">
               <Table>
                 <TableHeader className="sticky top-0 z-10 bg-card">
                   <TableRow>
