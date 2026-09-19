@@ -353,6 +353,40 @@ export default function Index() {
             </Card>
           </div>
 
+          <h3 className="mb-3 text-lg font-semibold">
+            Fund Balances{" "}
+            {hasCustomRange ? (
+              <span className="text-sm font-normal text-muted-foreground">
+                — {fromDate || "…"} to {toDate || "…"}
+              </span>
+            ) : (
+              month !== ALL && <span className="text-sm font-normal text-muted-foreground">— {monthLabel(month)}</span>
+            )}
+          </h3>
+          <div className="mb-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {summaries.map((s) => (
+              <Card key={s.id}>
+                <CardHeader>
+                  <CardTitle className="text-base">{s.name}</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-1 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Income</span>
+                    <span>৳ {formatBDT(s.income)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Expense</span>
+                    <span>৳ {formatBDT(s.expense)}</span>
+                  </div>
+                  <div className="flex justify-between border-t pt-1 font-semibold">
+                    <span>Balance</span>
+                    <span>৳ {formatBDT(s.balance)}</span>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
           <div className="mb-6 grid gap-4 lg:grid-cols-2">
             <Card>
               <CardHeader>
@@ -509,40 +543,6 @@ export default function Index() {
                 )}
               </CardContent>
             </Card>
-          </div>
-
-          <h3 className="mb-3 text-lg font-semibold">
-            Fund Balances{" "}
-            {hasCustomRange ? (
-              <span className="text-sm font-normal text-muted-foreground">
-                — {fromDate || "…"} to {toDate || "…"}
-              </span>
-            ) : (
-              month !== ALL && <span className="text-sm font-normal text-muted-foreground">— {monthLabel(month)}</span>
-            )}
-          </h3>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {summaries.map((s) => (
-              <Card key={s.id}>
-                <CardHeader>
-                  <CardTitle className="text-base">{s.name}</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-1 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Income</span>
-                    <span>৳ {formatBDT(s.income)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Expense</span>
-                    <span>৳ {formatBDT(s.expense)}</span>
-                  </div>
-                  <div className="flex justify-between border-t pt-1 font-semibold">
-                    <span>Balance</span>
-                    <span>৳ {formatBDT(s.balance)}</span>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
           </div>
         </>
       )}
